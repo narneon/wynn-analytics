@@ -1,7 +1,7 @@
 from google.cloud import bigquery
-import os
+import dotenv
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "../../data/local_dev_sa.json"
+dotenv.load_dotenv()
 client = bigquery.Client()
 
 # List datasets in the project
