@@ -4,9 +4,6 @@ import os
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "../../data/local_dev_sa.json"
 client = bigquery.Client()
 
-# Initialize client
-client = bigquery.Client()
-
 # List datasets in the project
 datasets = list(client.list_datasets())
 if datasets:
