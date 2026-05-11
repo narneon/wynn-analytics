@@ -114,7 +114,7 @@ class WynnAPI:
         self,
         session: aiohttp.ClientSession,
     ) -> Optional[dict[str, Any]]:
-        return await self._request_json(session, "/player?identifier=")
+        return await self._request_json(session, "/player?identifier=uuid")
 
     async def fetch_player(
         self,
