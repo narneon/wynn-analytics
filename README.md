@@ -241,25 +241,25 @@ Add your API keys and BigQuery configuration.
 ## Wynn API Parsing
 
 ```bash
-python -m src.Scripts.test_wynn_api
+python -m src.scripts.test_wynn_api
 ```
 
 ## Online Player Collection
 
 ```bash
-python -m src.Scripts.test_online_players
+python -m src.scripts.test_online_players
 ```
 
 ## Raid Tracker
 
 ```bash
-python -m src.Scripts.test_raid_tracker
+python -m src.scripts.test_raid_tracker
 ```
 
 ## Archetype Flow
 
 ```bash
-python -m src.Scripts.test_archetype_api_flow
+python -m src.scripts.test_archetype_api_flow
 ```
 
 ---
