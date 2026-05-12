@@ -14,17 +14,39 @@ from src.utils.logging_utils import setup_logger
 logger = setup_logger(__name__)
 
 
-def current_utc_hour() -> str:
-    now = datetime.now(timezone.utc)
-    return now.strftime("%Y-%m-%d-%H")
+def utc_now():
+    return datetime.now(timezone.utc)
 
 
 def current_hour_bucket() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%d-%H")
+    return utc_now().strftime("%Y-%m-%d-%H")
 
 
 def previous_hour_bucket() -> str:
-    return (datetime.now(timezone.utc) - timedelta(hours=1)).strftime("%Y-%m-%d-%H")
+    return (utc_now() - timedelta(hours=1)).strftime("%Y-%m-%d-%H")
+
+
+def seconds_until_next_boundary(interval_seconds: int) -> float:
+    now = utc_now()
+    seconds_since_hour = (
+        now.minute * 60
+        + now.second
+        + now.microsecond / 1_000_000
+    )
+
+    remainder = seconds_since_hour % interval_seconds
+    sleep_seconds = interval_seconds - remainder
+
+    if sleep_seconds <= 0:
+        return interval_seconds
+
+    return sleep_seconds
+
+
+def seconds_until_next_hour() -> float:
+    now = utc_now()
+    next_hour = now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+    return (next_hour - now).total_seconds()
 
 
 async def wait_if_paused():
@@ -35,6 +57,56 @@ async def wait_if_paused():
         await asyncio.sleep(30)
 
 
+async def online_poll_loop(api, session, sqlite_store, bq):
+    while True:
+        await wait_if_paused()
+
+        hour_bucket = current_hour_bucket()
+
+        logger.info(f"Starting online player poll for hour_bucket={hour_bucket}")
+
+        await collect_online_players_once(
+            api=api,
+            session=session,
+            sqlite_store=sqlite_store,
+            bq=bq,
+            hour_bucket=hour_bucket,
+        )
+
+        sleep_seconds = seconds_until_next_boundary(ONLINE_POLL_SECONDS)
+
+        logger.info(f"Sleeping {sleep_seconds:.1f}s until next online poll boundary")
+        await asyncio.sleep(sleep_seconds)
+
+
+async def raid_scan_loop(api, session, sqlite_store, bq):
+    # Do not scan immediately on startup.
+    # Wait until the next real hour boundary.
+    sleep_seconds = seconds_until_next_hour()
+    logger.info(f"First raid scan scheduled in {sleep_seconds:.1f}s")
+    await asyncio.sleep(sleep_seconds)
+
+    while True:
+        await wait_if_paused()
+
+        scan_bucket = previous_hour_bucket()
+
+        logger.info(f"Starting hourly raid scan for previous hour_bucket={scan_bucket}")
+
+        await collect_raid_deltas_once(
+            api=api,
+            session=session,
+            sqlite_store=sqlite_store,
+            bq=bq,
+            hour_bucket=scan_bucket,
+        )
+
+        sleep_seconds = seconds_until_next_hour()
+
+        logger.info(f"Sleeping {sleep_seconds:.1f}s until next raid scan boundary")
+        await asyncio.sleep(sleep_seconds)
+
+
 async def main():
     logger.info("Starting Wynn analytics scraper")
 
@@ -42,42 +114,12 @@ async def main():
     sqlite_store = SQLiteStore()
     bq = BigQueryClient()
 
-    last_raid_scan_hour = None
-
     try:
         async with await api.create_session() as session:
-            while True:
-                await wait_if_paused()
-
-                logger.info("Starting online player poll")
-
-                await collect_online_players_once(
-                    api=api,
-                    session=session,
-                    sqlite_store=sqlite_store,
-                    bq=bq,
-                    hour_bucket=current_hour_bucket(),
-                )
-
-                current_hour = current_utc_hour()
-
-                if current_hour != last_raid_scan_hour:
-                    logger.info(f"Starting hourly raid scan for hour={current_hour}")
-
-                    scan_hour = previous_hour_bucket()
-
-                    await collect_raid_deltas_once(
-                        api=api,
-                        session=session,
-                        sqlite_store=sqlite_store,
-                        bq=bq,
-                        hour_bucket=scan_hour,
-                    )
-
-                    last_raid_scan_hour = current_hour
-
-                logger.info(f"Sleeping for {ONLINE_POLL_SECONDS} seconds")
-                await asyncio.sleep(ONLINE_POLL_SECONDS)
+            await asyncio.gather(
+                online_poll_loop(api, session, sqlite_store, bq),
+                raid_scan_loop(api, session, sqlite_store, bq),
+            )
 
     except KeyboardInterrupt:
         logger.info("Received KeyboardInterrupt, shutting down")
