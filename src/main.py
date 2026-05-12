@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 from src.api.wynn_api import WynnAPI
@@ -17,6 +17,14 @@ logger = setup_logger(__name__)
 def current_utc_hour() -> str:
     now = datetime.now(timezone.utc)
     return now.strftime("%Y-%m-%d-%H")
+
+
+def current_hour_bucket() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d-%H")
+
+
+def previous_hour_bucket() -> str:
+    return (datetime.now(timezone.utc) - timedelta(hours=1)).strftime("%Y-%m-%d-%H")
 
 
 async def wait_if_paused():
@@ -48,6 +56,7 @@ async def main():
                     session=session,
                     sqlite_store=sqlite_store,
                     bq=bq,
+                    hour_bucket=current_hour_bucket(),
                 )
 
                 current_hour = current_utc_hour()
@@ -55,11 +64,14 @@ async def main():
                 if current_hour != last_raid_scan_hour:
                     logger.info(f"Starting hourly raid scan for hour={current_hour}")
 
+                    scan_hour = previous_hour_bucket()
+
                     await collect_raid_deltas_once(
                         api=api,
                         session=session,
                         sqlite_store=sqlite_store,
                         bq=bq,
+                        hour_bucket=scan_hour,
                     )
 
                     last_raid_scan_hour = current_hour

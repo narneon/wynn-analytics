@@ -136,9 +136,10 @@ async def collect_raid_deltas_once(
     session: aiohttp.ClientSession,
     sqlite_store: SQLiteStore,
     bq: BigQueryClient,
+    hour_bucket: str,
 ) -> bool:
     scan_timestamp = datetime.now(timezone.utc).isoformat()
-    player_ids = sqlite_store.get_seen_players()
+    player_ids = sqlite_store.get_seen_players_for_hour(hour_bucket)
 
     if not player_ids:
         logger.info("No seen players to process for raid deltas")
@@ -146,7 +147,8 @@ async def collect_raid_deltas_once(
 
     logger.info(
         f"Starting raid scan for {len(player_ids)} players "
-        f"with concurrency={GLOBAL_CONCURRENCY}"
+        f"with concurrency={GLOBAL_CONCURRENCY}, "
+        f"from hour_bucket={hour_bucket}"
     )
 
     semaphore = asyncio.Semaphore(GLOBAL_CONCURRENCY)
@@ -177,7 +179,10 @@ async def collect_raid_deltas_once(
     success = bq.insert_raid_rows(all_rows)
 
     if success:
-        sqlite_store.clear_seen_players()
+        sqlite_store.clear_seen_players_for_hour(hour_bucket)
+        logger.info(
+            f"Cleared processed players for hour_bucket={hour_bucket}"
+        )
     else:
         logger.warning("Raid rows failed to insert; keeping seen players for retry")
 

@@ -27,7 +27,9 @@ class SQLiteStore:
         # Tracks players seen during the current hourly cycle
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS seen_players_this_hour (
-            player_id TEXT PRIMARY KEY
+            hour_bucket TEXT NOT NULL,
+            player_id TEXT NOT NULL,
+            PRIMARY KEY (hour_bucket, player_id)
         )
         """)
 
@@ -59,38 +61,38 @@ class SQLiteStore:
     # Seen player tracking
     # -----------------------------
 
-    def add_seen_player(self, player_id: str):
+    def add_seen_player(self, player_id: str, hour_bucket: str):
         cursor = self.conn.cursor()
 
         cursor.execute("""
-        INSERT OR IGNORE INTO seen_players_this_hour (player_id)
-        VALUES (?)
-        """, (player_id,))
+                       INSERT
+                       OR IGNORE INTO seen_players_this_hour (hour_bucket, player_id)
+        VALUES (?, ?)
+                       """, (hour_bucket, player_id))
 
         self.conn.commit()
 
-    def get_seen_players(self) -> list[str]:
+    def get_seen_players_for_hour(self, hour_bucket: str) -> list[str]:
         cursor = self.conn.cursor()
 
         cursor.execute("""
-        SELECT player_id
-        FROM seen_players_this_hour
-        """)
+                       SELECT player_id
+                       FROM seen_players_this_hour
+                       WHERE hour_bucket = ?
+                       """, (hour_bucket,))
 
-        rows = cursor.fetchall()
+        return [row["player_id"] for row in cursor.fetchall()]
 
-        return [row["player_id"] for row in rows]
-
-    def clear_seen_players(self):
+    def clear_seen_players_for_hour(self, hour_bucket: str):
         cursor = self.conn.cursor()
 
         cursor.execute("""
-        DELETE FROM seen_players_this_hour
-        """)
+                       DELETE
+                       FROM seen_players_this_hour
+                       WHERE hour_bucket = ?
+                       """, (hour_bucket,))
 
         self.conn.commit()
-
-        logger.info("Cleared seen_players_this_hour table")
 
     # -----------------------------
     # Character totals tracking

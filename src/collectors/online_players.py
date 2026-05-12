@@ -16,6 +16,7 @@ async def collect_online_players_once(
     session: aiohttp.ClientSession,
     sqlite_store: SQLiteStore,
     bq: BigQueryClient,
+    hour_bucket: str,
 ) -> bool:
     payload = await api.fetch_online_players(session)
 
@@ -28,7 +29,7 @@ async def collect_online_players_once(
     timestamp = datetime.now(timezone.utc).isoformat()
 
     for player_id in player_ids:
-        sqlite_store.add_seen_player(player_id)
+        sqlite_store.add_seen_player(player_id, hour_bucket)
 
     row = {
         "timestamp": timestamp,
@@ -40,7 +41,8 @@ async def collect_online_players_once(
     logger.info(
         f"Online collection complete: "
         f"online_total={online_total}, "
-        f"bq_success={success}"
+        f"bq_success={success}, "
+        f"Online poll stored {len(player_ids)} players "
+        f"into hour_bucket={hour_bucket}"
     )
-
     return success
