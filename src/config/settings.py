@@ -38,7 +38,6 @@ LOG_PATH = Path(os.getenv("LOG_PATH", "data/logs/scraper.log"))
 PAUSE_FILE = Path(os.getenv("PAUSE_FILE", "data/PAUSE"))
 
 # Google / BigQuery
-GOOGLE_APPLICATION_CREDENTIALS = _get_required_env("GOOGLE_APPLICATION_CREDENTIALS")
 GCP_PROJECT_ID = _get_required_env("GCP_PROJECT_ID")
 BQ_DATASET = _get_required_env("BQ_DATASET")
 BQ_RAID_TABLE = os.getenv("BQ_RAID_TABLE", "hourly_raid_data")
