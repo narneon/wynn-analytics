@@ -127,12 +127,16 @@ async def compute_ultimate_usage_counts(
         for row in unique_rows
     ]
 
-    results = await asyncio.gather(*tasks, return_exceptions=True)
+    completed = 0
 
-    for index, result in enumerate(results, start=1):
-        if isinstance(result, Exception):
-            logger.exception("Ultimate usage task failed", exc_info=result)
-            continue
+    for task in asyncio.as_completed(tasks):
+        result = await task
+        completed += 1
+
+        if completed % 200 == 0:
+            logger.info(
+                f"Ultimate usage progress: {completed}/{len(unique_rows)} checked"
+            )
 
         if result is None:
             continue
@@ -141,11 +145,6 @@ async def compute_ultimate_usage_counts(
 
         if has_ult:
             counts[(raid, archetype)] = counts.get((raid, archetype), 0) + 1
-
-        if index % 200 == 0:
-            logger.info(
-                f"Ultimate usage progress: {index}/{len(unique_rows)} checked"
-            )
 
     logger.info(f"Computed ultimate usage for {len(unique_rows)} unique rows")
 
