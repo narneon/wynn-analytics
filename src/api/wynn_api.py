@@ -227,7 +227,7 @@ class WynnAPI:
                 str_points = skill_points.get("strength", 0)
                 dex_points = skill_points.get("dexterity", 0)
                 int_points = skill_points.get("intelligence", 0)
-                def_points = skill_points.get("defence", 0)
+                def_points = skill_points.get("defense", 0)
                 agi_points = skill_points.get("agility", 0)
             else:
                 str_points = None

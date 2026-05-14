@@ -9,10 +9,7 @@ logger = setup_logger(__name__)
 
 
 TEST_PLAYERS = [
-    "MFLR5",
-    "Twigbones",
-    "EscimoCandy",
-    "Warze"
+    "banna1"
 ]
 
 
