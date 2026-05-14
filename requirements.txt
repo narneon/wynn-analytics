@@ -2,3 +2,6 @@ aiohttp
 google-cloud-bigquery
 google-auth
 python-dotenv
+matplotlib
+pandas
+pillow
