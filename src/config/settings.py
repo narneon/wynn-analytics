@@ -42,6 +42,7 @@ GCP_PROJECT_ID = _get_required_env("GCP_PROJECT_ID")
 BQ_DATASET = _get_required_env("BQ_DATASET")
 BQ_RAID_TABLE = os.getenv("BQ_RAID_TABLE", "hourly_raid_data")
 BQ_ONLINE_TABLE = os.getenv("BQ_ONLINE_TABLE", "online_player_count")
+BQ_DAILY_TABLE = os.getenv("BQ_DAILY_TABLE", "daily_raid_data")
 
 # Wynn API
 WYNN_API_KEYS = _get_list_env("WYNN_API_KEYS")
@@ -57,3 +58,11 @@ LOG_BACKUP_COUNT = _get_int_env("LOG_BACKUP_COUNT", 5)
 
 # Dry Run
 DRY_RUN = os.getenv("DRY_RUN", "false").lower() == "true"
+
+# Discord / reporting
+DISCORD_WEBHOOK_URL = _get_required_env("DISCORD_WEBHOOK_URL")
+
+DAILY_DIGEST_HOUR_UTC = _get_int_env("DAILY_DIGEST_HOUR_UTC", 17)
+DAILY_DIGEST_MINUTE_UTC = _get_int_env("DAILY_DIGEST_MINUTE_UTC", 30)
+
+REPORT_OUTPUT_DIR = Path(os.getenv("REPORT_OUTPUT_DIR", "data/reports"))
