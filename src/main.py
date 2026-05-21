@@ -176,9 +176,17 @@ async def daily_digest_loop(api, session):
 
             image_paths = generate_raid_digest_images(image_rows)
 
+            current_date = datetime.now(timezone.utc).strftime("%m/%d/%Y")
+
+            message = (
+                "Daily Wynncraft Raid Report\n"
+                f"Date: {current_date}\n"
+                "WynnAnalytics Link: https://discord.gg/xxxQ7PJB4k"
+            )
+
             await send_discord_files(
                 image_paths=image_paths,
-                content="Daily Wynncraft raid digest",
+                content=message,
             )
 
             logger.info("Daily Discord digest complete")

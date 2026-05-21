@@ -11,6 +11,7 @@ from src.reports.daily_digest import (
 from src.reports.discord_client import send_discord_files
 from src.reports.ultimate_usage import compute_ultimate_usage_counts
 
+from datetime import datetime, timezone
 
 async def main():
     digest_service = DailyDigestService()
@@ -76,9 +77,18 @@ async def main():
     for path in image_paths:
         print(path)
 
+    current_date = datetime.now(timezone.utc).strftime("%m/%d/%Y")
+
+    message = (
+        "TEST MESSAGE\n"
+        "Daily Wynncraft Raid Report\n"
+        f"Date: {current_date}\n"
+        "WynnAnalytics Link: https://discord.gg/xxxQ7PJB4k"
+    )
+
     discord_success = await send_discord_files(
         image_paths=image_paths,
-        content="Daily digest integration test",
+        content=message,
     )
 
     print(f"\nDiscord send success: {discord_success}")
