@@ -8,44 +8,27 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter
 OUTPUT_DIR = Path("data/reports")
 OUTPUT_PATH = OUTPUT_DIR / "pillow_dashboard_test.png"
 
-RAID = 'wtp'
+RAID = 'nog'
 
 ICON_PATH = Path(f"data/assets/{RAID}_icon.png")
 
-W, H = 1600, 1850
+W, H = 1600, 1875
 
 RAID_COLORS = {
-    'nog': {
-        "title_text": (137, 186, 47),
-        "accent": (69, 105, 39),
-    },
-    'nol': {
-        "title_text": (212, 212, 212),
-        "accent": (212, 177, 72),
-        # "title_text": (212, 177, 72),
-        # "accent": (38, 8, 94),
-    },
-    'tcc': {
-        "title_text": (132, 232, 144),
-        "accent": (118, 149, 166),
-    },
-    'tna': {
-        "title_text":(31, 110, 153),
-        "accent": (58, 39, 102),
-    },
-    'wtp': {
-        "title_text": (130, 61, 82),
-        "accent": (79, 3, 8),
-    }
+    'nog': (69, 105, 39),
+    'nol': (212, 177, 72),
+    'tcc': (118, 149, 166),
+    'tna': (58, 39, 102),
+    'wtp': (79, 3, 8),
 }
 
-# const CC  = ['#79c0ff','#ffa657','#56d364','#d2a8ff','#ff7b72'];
+
 COLORS = {
     "bg": (8, 14, 13),
     "bg2": (12, 22, 18),
     "gold_dim": (93, 82, 37),
-    "title_text": RAID_COLORS['nol']["title_text"],
-    "accent": RAID_COLORS[RAID]["accent"],
+    "title_text": (212, 212, 212),
+    "accent": RAID_COLORS[RAID],
     "text": (230, 211, 157),
     "muted": (170, 154, 103),
 
@@ -54,31 +37,7 @@ COLORS = {
     "Assassin": (255, 166, 87),
     "Archer": (86, 211, 100),
     "Shaman": (210, 168, 255),
-
-    "cyan": (28, 171, 220),
-    "red": (170, 54, 38),
-    "blue": (56, 130, 175),
-    "purple": (135, 63, 170),
-    "orange": (210, 120, 30),
 }
-
-ARCHETYPE_LIST = [
-    "Fallen",
-    "Battlemonk",
-    "Paladin",
-    "Lightbender",
-    "Riftwalker",
-    "Arcanist",
-    "Shadestepper",
-    "Trickster",
-    "Acrobat",
-    "Boltslinger",
-    "Trapper",
-    "Sharpshooter",
-    "Summoner",
-    "Ritualist",
-    "Acolyte"
-]
 
 CLASS_LIST = [
     "Warrior",
@@ -106,7 +65,7 @@ ARCHETYPE_HEX = {
     "Acolyte": "#ff4500",
 }
 
-ARCHETYPE_FIXED = [
+ARCHETYPE_LIST = [
     "Boltslinger",
     "Trapper",
     "Sharpshooter",
@@ -134,12 +93,12 @@ def pastels(color: tuple[int, int, int], mix: float = 0.52) -> tuple[int, int, i
     return tuple(int(component + (255 - component) * mix) for component in color)
 
 
-ARCHETYPE_PCOLOURS = {
+ARCHETYPE_PCOLORS = {
     archetype: hextrgb(color_hex)
     for archetype, color_hex in ARCHETYPE_HEX.items()
 }
 
-ARCHETYPE_CCOLOURS = {
+ARCHETYPE_CCOLORS = {
     archetype: pastels(hextrgb(color_hex))
     for archetype, color_hex in ARCHETYPE_HEX.items()
 }
@@ -409,35 +368,51 @@ def draw_bar_chart(draw, box, labels, players, completions):
     x1, y1, x2, y2 = box
     max_players = max(players) if players else 1
     max_completions = max(completions) if completions else 1
-    max_value = max(max_players, max_completions)
 
-    axis_x = x1 + 28
-    chart_x1 = x1 + 86
-    chart_y1 = y1 + 70
-    chart_x2 = x2 - 50
+    left_label_size = draw.textbbox((0, 0), f"{int(round(max_players))}", font=FONT_SMALL)
+    left_padding = left_label_size[2]-left_label_size[0]
+    right_label_size = draw.textbbox((0, 0), f"{int(round(max_completions))}", font=FONT_SMALL)
+    right_padding = right_label_size[2] - right_label_size[0]
+
+    chart_x1 = x1 + left_padding + 10
+    chart_y1 = y1 + 100
+    chart_x2 = x2 - right_padding - 10
     chart_y2 = y2 - 70
 
-    draw.line([(axis_x, chart_y1), (axis_x, chart_y2)], fill=COLORS["gold_dim"], width=2)
-    draw.line([(axis_x - 8, chart_y2), (chart_x2, chart_y2)], fill=COLORS["gold_dim"], width=2)
+    draw.line([(chart_x1, chart_y1), (chart_x1, chart_y2)], fill=COLORS["gold_dim"], width=2)
+    draw.line([(chart_x2, chart_y1), (chart_x2, chart_y2)], fill=COLORS["gold_dim"], width=2)
+    draw.line([(chart_x1 - 8, chart_y2), (chart_x2+8, chart_y2)], fill=COLORS["gold_dim"], width=2)
 
     tick_count = 4
     for i in range(tick_count + 1):
-        value = max_value * i / tick_count
+        players_value = max_players * i / tick_count
+        completions_value = max_completions * i / tick_count
         tick_y = chart_y2 - (chart_y2 - chart_y1) * i / tick_count
 
         draw.line(
-            [(axis_x - 5, tick_y), (axis_x + 5, tick_y)],
+            [(chart_x1 - 5, tick_y), (chart_x2 + 5, tick_y)],
             fill=COLORS["gold_dim"],
             width=2,
         )
 
-        tick_label = f"{int(round(value))}"
+        tick_label = f"{int(round(players_value))}"
         bbox = draw.textbbox((0, 0), tick_label, font=FONT_SMALL)
         text_w = bbox[2] - bbox[0]
         text_h = bbox[3] - bbox[1]
 
         draw.text(
-            (axis_x - 12 - text_w, tick_y - text_h / 2),
+            (chart_x1 - 12 - text_w, tick_y - text_h // 2),
+            tick_label,
+            font=FONT_SMALL,
+            fill=COLORS["muted"],
+        )
+
+        tick_label = f"{int(round(completions_value))}"
+        bbox = draw.textbbox((0, 0), tick_label, font=FONT_SMALL)
+        text_h = bbox[3] - bbox[1]
+
+        draw.text(
+            (chart_x2 + 12, tick_y - text_h // 2),
             tick_label,
             font=FONT_SMALL,
             fill=COLORS["muted"],
@@ -452,16 +427,16 @@ def draw_bar_chart(draw, box, labels, players, completions):
         p_h = (players[i] / max_players) * (chart_y2 - chart_y1)
         c_h = (completions[i] / max_completions) * (chart_y2 - chart_y1)
 
-        player_colour = ARCHETYPE_PCOLOURS.get(label, COLORS["blue"])
-        completion_colour = ARCHETYPE_CCOLOURS.get(label, COLORS["accent"])
+        player_color = ARCHETYPE_PCOLORS.get(label)
+        completion_COLOR = ARCHETYPE_CCOLORS.get(label)
 
         draw.rectangle(
             [gx, chart_y2 - p_h, gx + bar_w, chart_y2],
-            fill=player_colour,
+            fill=player_color,
         )
         draw.rectangle(
             [gx + bar_w + 8, chart_y2 - c_h, gx + bar_w * 2 + 8, chart_y2],
-            fill=completion_colour,
+            fill=completion_COLOR,
         )
 
         label_x = gx + bar_w + 3
@@ -697,7 +672,7 @@ def main():
             [random.randint(20, 70), random.randint(20, 70), random.randint(20, 70), random.randint(20, 70), random.randint(20, 70)]
             for _ in archetypes
         ]
-        radar_colors = [ARCHETYPE_PCOLOURS[archetype] for archetype in archetypes]
+        radar_colors = [ARCHETYPE_PCOLORS[archetype] for archetype in archetypes]
 
         draw_radar(
             draw,
@@ -714,7 +689,7 @@ def main():
     draw_bar_chart(
         draw,
         box=(50, 1350, 1550, 1750),
-        labels=ARCHETYPE_FIXED,
+        labels=ARCHETYPE_LIST,
         players=[10 + random.random() * 200 for _ in range(15)],
         completions=[500 + random.random() * 800 for _ in range(15)],
     )
