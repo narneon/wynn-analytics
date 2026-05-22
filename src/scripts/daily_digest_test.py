@@ -58,19 +58,7 @@ async def main():
     for row in digest_rows:
         grouped[row["raid"]].append(row)
 
-    image_rows = []
-
-    for raid_config in RAIDS:
-        rows = grouped.get(raid_config["raid"], [])
-
-        image_rows.append({
-            "raid": raid_config["raid"],
-            "raid_name": raid_config["raid_name"],
-            "completions": sum(row["completions"] for row in rows),
-            "unique_players": sum(row["unique_players"] for row in rows),
-        })
-
-    image_paths = generate_raid_digest_images(image_rows)
+    image_paths = generate_raid_digest_images(digest_rows)
 
     print("\nGenerated images:")
 
@@ -83,7 +71,7 @@ async def main():
         "TEST MESSAGE\n"
         "Daily Wynncraft Raid Report\n"
         f"Date: {current_date}\n"
-        "WynnAnalytics Link: https://discord.gg/xxxQ7PJB4k"
+        "WynnAnalytics Link: <https://discord.gg/xxxQ7PJB4k>"
     )
 
     discord_success = await send_discord_files(
