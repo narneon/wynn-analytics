@@ -156,25 +156,7 @@ async def daily_digest_loop(api, session):
 
             digest_service.insert_daily_digest_rows(digest_rows)
 
-            image_rows = []
-            grouped = {}
-
-            for row in digest_rows:
-                grouped.setdefault(row["raid"], []).append(row)
-
-            from src.reports.daily_digest import RAIDS
-
-            for raid_config in RAIDS:
-                rows = grouped.get(raid_config["raid"], [])
-
-                image_rows.append({
-                    "raid": raid_config["raid"],
-                    "raid_name": raid_config["raid_name"],
-                    "completions": sum(row["completions"] for row in rows),
-                    "unique_players": sum(row["unique_players"] for row in rows),
-                })
-
-            image_paths = generate_raid_digest_images(image_rows)
+            image_paths = generate_raid_digest_images(digest_rows)
 
             current_date = datetime.now(timezone.utc).strftime("%m/%d/%Y")
 
