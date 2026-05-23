@@ -155,6 +155,7 @@ class DailyDigestService:
               AND timestamp < @end_time
               AND {raid_config["delta_column"]} > 0
               AND archetype IS NOT NULL
+              AND archetype != 'Unknown'
             """)
 
         query = "\nUNION DISTINCT\n".join(union_queries)

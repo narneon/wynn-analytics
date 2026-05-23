@@ -1,26 +1,18 @@
-import math
-import random
-
 from pathlib import Path
-from collections import defaultdict
-
-from src.config.settings import REPORT_OUTPUT_DIR
-from src.utils.logging_utils import setup_logger
+import random
+import math
 
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
+from pip._internal.resolution.resolvelib import candidates
 
-logger = setup_logger(__name__)
+OUTPUT_DIR = Path("data/reports")
+OUTPUT_PATH = OUTPUT_DIR / "pillow_dashboard_test.png"
+
+RAID = 'nog'
+
+ICON_PATH = Path(f"data/assets/{RAID}_icon.png")
 
 W, H = 1600, 1875
-
-RAID_NAMES = {
-    "nog": "Nest of the Grootslangs",
-    "nol": "Orphion's Nexus of Light",
-    "tcc": "The Canyon Colossus",
-    "tna": "The Nameless Anomaly",
-    "wtp": "The Wartorn Palace",
-}
-
 
 RAID_COLORS = {
     'nog': (69, 105, 39),
@@ -36,7 +28,7 @@ COLORS = {
     "bg2": (12, 22, 18),
     "gold_dim": (93, 82, 37),
     "title_text": (212, 212, 212),
-    "accent": (0, 0, 0),
+    "accent": RAID_COLORS[RAID],
     "text": (230, 211, 157),
     "muted": (170, 154, 103),
 
@@ -55,40 +47,18 @@ CLASS_LIST = [
     "Shaman"
 ]
 
-ARCHETYPE_TO_CLASS = {
-    "Boltslinger": "Archer",
-    "Trapper": "Archer",
-    "Sharpshooter": "Archer",
-
-    "Riftwalker": "Mage",
-    "Light Bender": "Mage",
-    "Arcanist": "Mage",
-
-    "Shadestepper": "Assassin",
-    "Trickster": "Assassin",
-    "Acrobat": "Assassin",
-
-    "Fallen": "Warrior",
-    "Battle Monk": "Warrior",
-    "Paladin": "Warrior",
-
-    "Summoner": "Shaman",
-    "Ritualist": "Shaman",
-    "Acolyte": "Shaman",
-}
-
 ARCHETYPE_HEX = {
     "Boltslinger": "#ffcc00",
     "Trapper": "#006400",
     "Sharpshooter": "#ff00ff",
     "Riftwalker": "#add8e6",
-    "Light Bender": "#808080",
+    "Lightbender": "#808080",
     "Arcanist": "#8a2be2",
     "Shadestepper": "#0f766e",
     "Trickster": "#4b0082",
     "Acrobat": "#c0c0c0",
     "Fallen": "#ff0000",
-    "Battle Monk": "#fffd8d",
+    "Battlemonk": "#fffd8d",
     "Paladin": "#00008b",
     "Summoner": "#ffa500",
     "Ritualist": "#90ee90",
@@ -100,25 +70,19 @@ ARCHETYPE_LIST = [
     "Trapper",
     "Sharpshooter",
     "Riftwalker",
-    "Light Bender",
+    "Lightbender",
     "Arcanist",
     "Shadestepper",
     "Trickster",
     "Acrobat",
     "Fallen",
-    "Battle Monk",
+    "Battlemonk",
     "Paladin",
     "Summoner",
     "Ritualist",
     "Acolyte",
 ]
 
-DISPLAY_ARCHETYPE_NAMES = {
-    "Light Bender": "Lightbender",
-}
-
-def display_archetype_name(archetype: str) -> str:
-    return DISPLAY_ARCHETYPE_NAMES.get(archetype, archetype)
 
 def hextrgb(value: str) -> tuple[int, int, int]:
     value = value.lstrip("#")
@@ -143,122 +107,18 @@ RADAR_FIXED = ["Archer", "Mage", "Assassin", "Warrior", "Shaman"]
 
 RADAR_ARCHCLASS = {
     "Archer": ["Boltslinger", "Trapper", "Sharpshooter"],
-    "Mage": ["Riftwalker", "Light Bender", "Arcanist"],
+    "Mage": ["Riftwalker", "Lightbender", "Arcanist"],
     "Assassin": ["Shadestepper", "Trickster", "Acrobat"],
-    "Warrior": ["Fallen", "Battle Monk", "Paladin"],
+    "Warrior": ["Fallen", "Battlemonk", "Paladin"],
     "Shaman": ["Summoner", "Ritualist", "Acolyte"],
 }
 
-
-def build_dashboard_data(
-    raid: str,
-    digest_rows: list[dict],
-) -> dict:
-
-    raid_rows = [
-        row
-        for row in digest_rows
-        if row["raid"] == raid
-    ]
-
-    archetype_rows = {
-        row["archetype"]: row
-        for row in raid_rows
-    }
-
-    total_completions = sum(
-        row["completions"]
-        for row in raid_rows
-    )
-
-    total_unique_players = sum(
-        row["unique_players"]
-        for row in raid_rows
-    )
-
-    class_players = defaultdict(int)
-    class_completions = defaultdict(int)
-
-    for row in raid_rows:
-        archetype = row["archetype"]
-
-        if archetype == "Unknown":
-            continue
-
-        c = ARCHETYPE_TO_CLASS.get(archetype)
-
-        if c is None:
-            continue
-
-        class_players[c] += row["unique_players"]
-        class_completions[c] += row["completions"]
-
-    ultimate_usage = {}
-
-    for row in raid_rows:
-        archetype = row["archetype"]
-
-        if archetype == "Unknown":
-            continue
-
-        unique_players = row["unique_players"]
-
-        ult_pct = (
-            row["ult_uses"] / unique_players * 100
-            if unique_players > 0
-            else 0
-        )
-
-        ultimate_usage[archetype] = round(ult_pct, 1)
-
-    radar_data = {}
-
-    for c, archetypes in RADAR_ARCHCLASS.items():
-        radar_data[c] = []
-
-        for archetype in archetypes:
-            row = archetype_rows.get(archetype)
-
-            if not row:
-                continue
-
-            radar_data[c].append({
-                "archetype": archetype,
-                "values": [
-                    row["avg_str"],
-                    row["avg_dex"],
-                    row["avg_int"],
-                    row["avg_def"],
-                    row["avg_agi"],
-                ],
-            })
-
-    return {
-        "raid": raid,
-        "raid_name": RAID_NAMES[raid],
-
-        "digest_date": raid_rows[0]["digest_date"]
-        if raid_rows else None,
-
-        "total_completions": total_completions,
-        "total_unique_players": total_unique_players,
-
-        "class_players": dict(class_players),
-        "class_completions": dict(class_completions),
-
-        "ultimate_usage": ultimate_usage,
-
-        "radar_data": radar_data,
-
-        "archetype_rows": archetype_rows,
-    }
-
 def load_font(size: int, bold: bool = False):
     candidates = [
-        "assets/times.ttf",
-        "assets/timesbd.ttf" if bold else "assets/times.ttf",
+        "C:/Windows/Fonts/times.ttf",
+        "C:/Windows/Fonts/timesbd.ttf" if bold else "C:/Windows/Fonts/times.ttf",
     ]
-
+    # candidates = ["data/assets/wynn-wynncraft.ttf"]
     for path in candidates:
         if path and Path(path).exists():
             return ImageFont.truetype(path, size)
@@ -293,12 +153,12 @@ def add_noise_background(img: Image.Image):
     img.alpha_composite(overlay)
 
 
-def draw_outer_border(draw: ImageDraw.ImageDraw, accent_color):
+def draw_outer_border(draw: ImageDraw.ImageDraw):
     margin = 22
 
     draw.rectangle(
         [margin, margin, W - margin, H - margin],
-        outline=accent_color,
+        outline=COLORS["accent"],
         width=3,
     )
 
@@ -310,11 +170,12 @@ def draw_outer_border(draw: ImageDraw.ImageDraw, accent_color):
 
     # Corner ornaments
     for sx, sy in [(1, 1), (-1, 1), (1, -1), (-1, -1)]:
+    # for sx, sy in [(-1, 1), (1, -1), (-1, -1)]:
         cx = margin + 28 if sx == 1 else W - margin - 28
         cy = margin + 28 if sy == 1 else H - margin - 28
 
-        draw.line([(cx, cy), (cx + sx * 90, cy)], fill=accent_color, width=3)
-        draw.line([(cx, cy), (cx, cy + sy * 90)], fill=accent_color, width=3)
+        draw.line([(cx, cy), (cx + sx * 90, cy)], fill=COLORS["accent"], width=3)
+        draw.line([(cx, cy), (cx, cy + sy * 90)], fill=COLORS["accent"], width=3)
 
         draw.line(
             [(cx + sx * 20, cy + sy * 20), (cx + sx * 70, cy + sy * 20)],
@@ -334,7 +195,7 @@ def draw_centered_text(draw, x1, x2, text, y, font, fill):
     draw.text((x if x > 0 else 0, y), text, font=font, fill=fill)
 
 
-def draw_divider(draw, y, accent_color):
+def draw_divider(draw, y):
     x1, x2 = 60, W - 60
     draw.line([(x1, y), (W // 2 - 25, y)], fill=COLORS["gold_dim"], width=2)
     draw.line([(W // 2 + 25, y), (x2, y)], fill=COLORS["gold_dim"], width=2)
@@ -345,7 +206,7 @@ def draw_divider(draw, y, accent_color):
         (W // 2, y + 9),
         (W // 2 - 9, y),
     ]
-    draw.polygon(diamond, outline=COLORS["gold_dim"], fill=accent_color, width=2)
+    draw.polygon(diamond, outline=COLORS["gold_dim"], fill=COLORS["accent"], width=2)
 
 
 def draw_panel(draw, box, title=None):
@@ -567,7 +428,7 @@ def draw_bar_chart(draw, box, labels, players, completions):
         c_h = (completions[i] / max_completions) * (chart_y2 - chart_y1)
 
         player_color = ARCHETYPE_PCOLORS.get(label)
-        completion_color = ARCHETYPE_CCOLORS.get(label)
+        completion_COLOR = ARCHETYPE_CCOLORS.get(label)
 
         draw.rectangle(
             [gx, chart_y2 - p_h, gx + bar_w, chart_y2],
@@ -575,18 +436,17 @@ def draw_bar_chart(draw, box, labels, players, completions):
         )
         draw.rectangle(
             [gx + bar_w + 8, chart_y2 - c_h, gx + bar_w * 2 + 8, chart_y2],
-            fill=completion_color,
+            fill=completion_COLOR,
         )
 
         label_x = gx + bar_w + 3
 
-        display_label = display_archetype_name(label)
-        bbox = draw.textbbox((0, 0), display_label, font=FONT_SMALL)
+        bbox = draw.textbbox((0, 0), label, font=FONT_SMALL)
         text_w = bbox[2] - bbox[0]
 
         draw.text(
             (label_x - text_w / 2, chart_y2 + 10),
-            display_label,
+            label,
             font=FONT_SMALL,
             fill=COLORS["text"],
         )
@@ -648,11 +508,11 @@ def draw_bar_chart(draw, box, labels, players, completions):
     )
 
 
-def paste_icon(img, icon_path):
-    if not icon_path.exists():
+def paste_icon(img):
+    if not ICON_PATH.exists():
         return
 
-    icon = Image.open(icon_path).convert("RGBA")
+    icon = Image.open(ICON_PATH).convert("RGBA")
     icon.thumbnail((650, 375))
 
     x = W//2-icon.size[0] - 10
@@ -661,48 +521,22 @@ def paste_icon(img, icon_path):
     img.alpha_composite(icon, (x, y))
 
 
-def generate_raid_digest_images(digest_rows: list[dict]) -> list[Path]:
-    REPORT_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-
-    generated_paths = []
-
-    for raid in RAID_NAMES:
-        dashboard_data = build_dashboard_data(
-            raid=raid,
-            digest_rows=digest_rows,
-        )
-
-        image_path = generate_single_raid_dashboard(
-            dashboard_data=dashboard_data,
-        )
-
-        generated_paths.append(image_path)
-
-    return generated_paths
-
-
-def generate_single_raid_dashboard(dashboard_data: dict) -> Path:
-    raid = dashboard_data["raid"]
-    accent_color = RAID_COLORS.get(raid)
-    digest_date = dashboard_data["digest_date"]
-    total_completions = dashboard_data["total_completions"]
-
-    output_path = REPORT_OUTPUT_DIR / f"{raid}_daily_digest.png"
-    icon = Path(f"assets/{raid}_icon.png")
+def main():
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     img = Image.new("RGBA", (W, H), COLORS["bg"])
     add_noise_background(img)
 
     draw = ImageDraw.Draw(img)
 
-    draw_outer_border(draw, accent_color)
-    paste_icon(img, icon)
+    draw_outer_border(draw)
+    paste_icon(img)
 
     draw_centered_text(draw, W // 2, W - 30, "Daily Raid Analysis", 150, FONT_TITLE, COLORS["text"])
-    draw_centered_text(draw, W // 2, W - 30, f"Date: {digest_date}", 250, FONT_SUBTITLE, COLORS["title_text"])
-    draw_centered_text(draw, W // 2, W - 30, f"Total Completions: {total_completions}", 300, FONT_SUBTITLE, COLORS["title_text"])
+    draw_centered_text(draw, W // 2, W - 30, "Date: 2026-05-14", 250, FONT_SUBTITLE, COLORS["title_text"])
+    draw_centered_text(draw, W // 2, W - 30, "Total Completions: 4639", 300, FONT_SUBTITLE, COLORS["title_text"])
 
-    draw_divider(draw, 405, accent_color)
+    draw_divider(draw, 405)
 
     # Top pies
     pie_y = 650
@@ -748,10 +582,7 @@ def generate_single_raid_dashboard(dashboard_data: dict) -> Path:
         draw,
         left_region,
         "Players",
-        values=[
-            dashboard_data["class_players"].get(c, 0)
-            for c in CLASS_LIST
-        ],
+        values=[30 + int(random.random() * 600) for _ in range(5)],
         labels=CLASS_LIST,
         colors=[COLORS[i] for i in CLASS_LIST],
     )
@@ -760,15 +591,12 @@ def generate_single_raid_dashboard(dashboard_data: dict) -> Path:
         draw,
         right_region,
         "Completions",
-        values=[
-            dashboard_data["class_completions"].get(c, 0)
-            for c in CLASS_LIST
-        ],
+        values=[300 + int(random.random() * 1000) for _ in range(5)],
         labels=CLASS_LIST,
         colors=[COLORS[i] for i in CLASS_LIST],
     )
 
-    draw_divider(draw, 860, accent_color)
+    draw_divider(draw, 860)
 
     # Ultimate usage panel
     panel_width = 240
@@ -783,17 +611,8 @@ def generate_single_raid_dashboard(dashboard_data: dict) -> Path:
     panel_x1, panel_y1, panel_x2, panel_y2 = panel
 
     draw_panel(draw, panel, "Ultimate Usage")
-    ult_lines = sorted(
-        [
-            (
-                display_archetype_name(archetype),
-                f"{dashboard_data['ultimate_usage'].get(archetype, 0):.1f}%"
-            )
-            for archetype in ARCHETYPE_LIST
-        ],
-        key=lambda x: float(x[1].replace("%", "")),
-        reverse=True,
-    )
+    ult_lines = list(zip(ARCHETYPE_LIST, [f"{round(random.random() *50 + random.random() *50,2):.1f}%" for _ in range(15)]))
+
 
     label_x = panel_x1 + 22
     value_x = panel_x2 - 22
@@ -875,20 +694,12 @@ def generate_single_raid_dashboard(dashboard_data: dict) -> Path:
             fill=COLORS["title_text"],
         )
 
-        radar_rows = dashboard_data["radar_data"].get(
-            radar_class,
-            [],
-        )
-
+        archetypes = RADAR_ARCHCLASS[radar_class]
         radar_values = [
-            row["values"]
-            for row in radar_rows
+            [random.randint(20, 70), random.randint(20, 70), random.randint(20, 70), random.randint(20, 70), random.randint(20, 70)]
+            for _ in archetypes
         ]
-
-        radar_colors = [
-            ARCHETYPE_PCOLORS[row["archetype"]]
-            for row in radar_rows
-        ]
+        radar_colors = [ARCHETYPE_PCOLORS[archetype] for archetype in archetypes]
 
         draw_radar(
             draw,
@@ -899,32 +710,20 @@ def generate_single_raid_dashboard(dashboard_data: dict) -> Path:
             labels=["Str", "Dex", "Int", "Def", "Agi"],
         )
 
-    draw_divider(draw, 1340, accent_color)
+    draw_divider(draw, 1340)
 
     # Bar chart
     draw_bar_chart(
         draw,
         box=(50, 1350, 1550, 1750),
-
         labels=ARCHETYPE_LIST,
-
-        players=[
-            dashboard_data["archetype_rows"]
-            .get(archetype, {})
-            .get("unique_players", 0)
-
-            for archetype in ARCHETYPE_LIST
-        ],
-
-        completions=[
-            dashboard_data["archetype_rows"]
-            .get(archetype, {})
-            .get("completions", 0)
-
-            for archetype in ARCHETYPE_LIST
-        ],
+        players=[10 + int(random.random() * 200) for _ in range(15)],
+        completions=[500 + int(random.random() * 800) for _ in range(15)],
     )
 
-    img.save(output_path)
-    print(f"Saved dashboard test image to {output_path}")
-    return output_path
+    img.save(OUTPUT_PATH)
+    print(f"Saved dashboard test image to {OUTPUT_PATH}")
+
+
+if __name__ == "__main__":
+    main()

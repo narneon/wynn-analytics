@@ -11,6 +11,7 @@ from src.reports.daily_digest import (
 from src.reports.discord_client import send_discord_files
 from src.reports.ultimate_usage import compute_ultimate_usage_counts
 
+from datetime import datetime, timezone
 
 async def main():
     digest_service = DailyDigestService()
@@ -57,28 +58,25 @@ async def main():
     for row in digest_rows:
         grouped[row["raid"]].append(row)
 
-    image_rows = []
-
-    for raid_config in RAIDS:
-        rows = grouped.get(raid_config["raid"], [])
-
-        image_rows.append({
-            "raid": raid_config["raid"],
-            "raid_name": raid_config["raid_name"],
-            "completions": sum(row["completions"] for row in rows),
-            "unique_players": sum(row["unique_players"] for row in rows),
-        })
-
-    image_paths = generate_raid_digest_images(image_rows)
+    image_paths = generate_raid_digest_images(digest_rows)
 
     print("\nGenerated images:")
 
     for path in image_paths:
         print(path)
 
+    current_date = datetime.now(timezone.utc).strftime("%m/%d/%Y")
+
+    message = (
+        "TEST MESSAGE\n"
+        "Daily Wynncraft Raid Report\n"
+        f"Date: {current_date}\n"
+        "Wynn Analytics Link: <https://discord.gg/xxxQ7PJB4k>"
+    )
+
     discord_success = await send_discord_files(
         image_paths=image_paths,
-        content="Daily digest integration test",
+        content=message,
     )
 
     print(f"\nDiscord send success: {discord_success}")
