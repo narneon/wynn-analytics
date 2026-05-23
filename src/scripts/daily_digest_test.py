@@ -71,7 +71,7 @@ async def main():
         "TEST MESSAGE\n"
         "Daily Wynncraft Raid Report\n"
         f"Date: {current_date}\n"
-        "WynnAnalytics Link: <https://discord.gg/xxxQ7PJB4k>"
+        "Wynn Analytics Link: <https://discord.gg/xxxQ7PJB4k>"
     )
 
     discord_success = await send_discord_files(

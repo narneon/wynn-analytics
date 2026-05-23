@@ -61,7 +61,7 @@ ARCHETYPE_TO_CLASS = {
     "Sharpshooter": "Archer",
 
     "Riftwalker": "Mage",
-    "Lightbender": "Mage",
+    "Light Bender": "Mage",
     "Arcanist": "Mage",
 
     "Shadestepper": "Assassin",
@@ -69,7 +69,7 @@ ARCHETYPE_TO_CLASS = {
     "Acrobat": "Assassin",
 
     "Fallen": "Warrior",
-    "Battlemonk": "Warrior",
+    "Battle Monk": "Warrior",
     "Paladin": "Warrior",
 
     "Summoner": "Shaman",
@@ -82,13 +82,13 @@ ARCHETYPE_HEX = {
     "Trapper": "#006400",
     "Sharpshooter": "#ff00ff",
     "Riftwalker": "#add8e6",
-    "Lightbender": "#808080",
+    "Light Bender": "#808080",
     "Arcanist": "#8a2be2",
     "Shadestepper": "#0f766e",
     "Trickster": "#4b0082",
     "Acrobat": "#c0c0c0",
     "Fallen": "#ff0000",
-    "Battlemonk": "#fffd8d",
+    "Battle Monk": "#fffd8d",
     "Paladin": "#00008b",
     "Summoner": "#ffa500",
     "Ritualist": "#90ee90",
@@ -100,19 +100,25 @@ ARCHETYPE_LIST = [
     "Trapper",
     "Sharpshooter",
     "Riftwalker",
-    "Lightbender",
+    "Light Bender",
     "Arcanist",
     "Shadestepper",
     "Trickster",
     "Acrobat",
     "Fallen",
-    "Battlemonk",
+    "Battle Monk",
     "Paladin",
     "Summoner",
     "Ritualist",
     "Acolyte",
 ]
 
+DISPLAY_ARCHETYPE_NAMES = {
+    "Light Bender": "Lightbender",
+}
+
+def display_archetype_name(archetype: str) -> str:
+    return DISPLAY_ARCHETYPE_NAMES.get(archetype, archetype)
 
 def hextrgb(value: str) -> tuple[int, int, int]:
     value = value.lstrip("#")
@@ -137,9 +143,9 @@ RADAR_FIXED = ["Archer", "Mage", "Assassin", "Warrior", "Shaman"]
 
 RADAR_ARCHCLASS = {
     "Archer": ["Boltslinger", "Trapper", "Sharpshooter"],
-    "Mage": ["Riftwalker", "Lightbender", "Arcanist"],
+    "Mage": ["Riftwalker", "Light Bender", "Arcanist"],
     "Assassin": ["Shadestepper", "Trickster", "Acrobat"],
-    "Warrior": ["Fallen", "Battlemonk", "Paladin"],
+    "Warrior": ["Fallen", "Battle Monk", "Paladin"],
     "Shaman": ["Summoner", "Ritualist", "Acolyte"],
 }
 
@@ -249,8 +255,8 @@ def build_dashboard_data(
 
 def load_font(size: int, bold: bool = False):
     candidates = [
-        "C:/Windows/Fonts/times.ttf",
-        "C:/Windows/Fonts/timesbd.ttf" if bold else "C:/Windows/Fonts/times.ttf",
+        "assets/times.ttf",
+        "assets/timesbd.ttf" if bold else "assets/times.ttf",
     ]
 
     for path in candidates:
@@ -265,7 +271,7 @@ FONT_SUBTITLE = load_font(34)
 FONT_SECTION = load_font(32, bold=True)
 FONT_BODY = load_font(24)
 FONT_SMALL = load_font(18, bold=True)
-
+FONT_SMALLER = load_font(15, bold=True)
 
 def add_noise_background(img: Image.Image):
     noise = Image.new("RGB", img.size)
@@ -561,7 +567,7 @@ def draw_bar_chart(draw, box, labels, players, completions):
         c_h = (completions[i] / max_completions) * (chart_y2 - chart_y1)
 
         player_color = ARCHETYPE_PCOLORS.get(label)
-        completion_COLOR = ARCHETYPE_CCOLORS.get(label)
+        completion_color = ARCHETYPE_CCOLORS.get(label)
 
         draw.rectangle(
             [gx, chart_y2 - p_h, gx + bar_w, chart_y2],
@@ -569,17 +575,45 @@ def draw_bar_chart(draw, box, labels, players, completions):
         )
         draw.rectangle(
             [gx + bar_w + 8, chart_y2 - c_h, gx + bar_w * 2 + 8, chart_y2],
-            fill=completion_COLOR,
+            fill=completion_color,
         )
 
         label_x = gx + bar_w + 3
 
-        bbox = draw.textbbox((0, 0), label, font=FONT_SMALL)
+        display_label = display_archetype_name(label)
+        bbox = draw.textbbox((0, 0), display_label, font=FONT_SMALL)
         text_w = bbox[2] - bbox[0]
 
         draw.text(
             (label_x - text_w / 2, chart_y2 + 10),
-            label,
+            display_label,
+            font=FONT_SMALL,
+            fill=COLORS["text"],
+        )
+
+        bbox = draw.textbbox((0, 0), f"|", font=FONT_SMALLER)
+        text_w = bbox[2] - bbox[0]
+
+        draw.text(
+            (label_x - text_w / 2, chart_y2 + 32),
+            f"|",
+            font=FONT_SMALL,
+            fill=COLORS["text"],
+        )
+
+        bbox = draw.textbbox((0, 0), f"{players[i]}", font=FONT_SMALLER)
+        text_w = bbox[2] - bbox[0]
+
+        draw.text(
+            (label_x - text_w - 7, chart_y2 + 32),
+            f"{players[i]}",
+            font=FONT_SMALL,
+            fill=COLORS["text"],
+        )
+
+        draw.text(
+            (label_x + 3, chart_y2 + 32),
+            f"{completions[i]}",
             font=FONT_SMALL,
             fill=COLORS["text"],
         )
@@ -654,7 +688,7 @@ def generate_single_raid_dashboard(dashboard_data: dict) -> Path:
     total_completions = dashboard_data["total_completions"]
 
     output_path = REPORT_OUTPUT_DIR / f"{raid}_daily_digest.png"
-    icon = Path(f"data/assets/{raid}_icon.png")
+    icon = Path(f"assets/{raid}_icon.png")
 
     img = Image.new("RGBA", (W, H), COLORS["bg"])
     add_noise_background(img)
@@ -752,7 +786,7 @@ def generate_single_raid_dashboard(dashboard_data: dict) -> Path:
     ult_lines = sorted(
         [
             (
-                archetype,
+                display_archetype_name(archetype),
                 f"{dashboard_data['ultimate_usage'].get(archetype, 0):.1f}%"
             )
             for archetype in ARCHETYPE_LIST
@@ -840,8 +874,6 @@ def generate_single_raid_dashboard(dashboard_data: dict) -> Path:
             font=FONT_BODY,
             fill=COLORS["title_text"],
         )
-
-        archetypes = RADAR_ARCHCLASS[radar_class]
 
         radar_rows = dashboard_data["radar_data"].get(
             radar_class,

@@ -3,7 +3,7 @@ import random
 import math
 
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
-
+from pip._internal.resolution.resolvelib import candidates
 
 OUTPUT_DIR = Path("data/reports")
 OUTPUT_PATH = OUTPUT_DIR / "pillow_dashboard_test.png"
@@ -58,7 +58,7 @@ ARCHETYPE_HEX = {
     "Trickster": "#4b0082",
     "Acrobat": "#c0c0c0",
     "Fallen": "#ff0000",
-    "Battle Monk": "#fffd8d",
+    "Battlemonk": "#fffd8d",
     "Paladin": "#00008b",
     "Summoner": "#ffa500",
     "Ritualist": "#90ee90",
@@ -76,7 +76,7 @@ ARCHETYPE_LIST = [
     "Trickster",
     "Acrobat",
     "Fallen",
-    "Battle Monk",
+    "Battlemonk",
     "Paladin",
     "Summoner",
     "Ritualist",
@@ -118,7 +118,7 @@ def load_font(size: int, bold: bool = False):
         "C:/Windows/Fonts/times.ttf",
         "C:/Windows/Fonts/timesbd.ttf" if bold else "C:/Windows/Fonts/times.ttf",
     ]
-
+    # candidates = ["data/assets/wynn-wynncraft.ttf"]
     for path in candidates:
         if path and Path(path).exists():
             return ImageFont.truetype(path, size)
@@ -131,7 +131,7 @@ FONT_SUBTITLE = load_font(34)
 FONT_SECTION = load_font(32, bold=True)
 FONT_BODY = load_font(24)
 FONT_SMALL = load_font(18, bold=True)
-
+FONT_SMALLER = load_font(15, bold=True)
 
 def add_noise_background(img: Image.Image):
     noise = Image.new("RGB", img.size)
@@ -451,6 +451,33 @@ def draw_bar_chart(draw, box, labels, players, completions):
             fill=COLORS["text"],
         )
 
+        bbox = draw.textbbox((0, 0), f"|", font=FONT_SMALLER)
+        text_w = bbox[2] - bbox[0]
+
+        draw.text(
+            (label_x - text_w / 2, chart_y2 + 32),
+            f"|",
+            font=FONT_SMALL,
+            fill=COLORS["text"],
+        )
+
+        bbox = draw.textbbox((0, 0), f"{players[i]}", font=FONT_SMALLER)
+        text_w = bbox[2] - bbox[0]
+
+        draw.text(
+            (label_x - text_w - 7, chart_y2 + 32),
+            f"{players[i]}",
+            font=FONT_SMALL,
+            fill=COLORS["text"],
+        )
+
+        draw.text(
+            (label_x + 3, chart_y2 + 32),
+            f"{completions[i]}",
+            font=FONT_SMALL,
+            fill=COLORS["text"],
+        )
+
     title = "Archetype Tallies For Today"
 
     bbox = draw.textbbox((0, 0), title, font=FONT_SECTION)
@@ -690,8 +717,8 @@ def main():
         draw,
         box=(50, 1350, 1550, 1750),
         labels=ARCHETYPE_LIST,
-        players=[10 + random.random() * 200 for _ in range(15)],
-        completions=[500 + random.random() * 800 for _ in range(15)],
+        players=[10 + int(random.random() * 200) for _ in range(15)],
+        completions=[500 + int(random.random() * 800) for _ in range(15)],
     )
 
     img.save(OUTPUT_PATH)
