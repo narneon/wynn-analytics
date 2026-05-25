@@ -163,7 +163,7 @@ async def daily_digest_loop(api, session):
             message = (
                 "Daily Wynncraft Raid Report\n"
                 f"Date: {current_date}\n"
-                "Wynn Analytics Link: <https://discord.gg/xxxQ7PJB4k>"
+                "Made by: Wynn Analytics"
             )
 
             await send_discord_files(

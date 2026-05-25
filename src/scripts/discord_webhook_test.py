@@ -17,13 +17,13 @@ def create_test_image() -> Path:
 
     draw.text(
         (50, 50),
-        "Wynn Analytics Discord Test",
+        "Analytics Bot is not real",
         fill=(255, 255, 255),
     )
 
     draw.text(
         (50, 120),
-        "If you can see this image, callum and autosmord are stinky noobs.",
+        "6767676767",
         fill=(220, 220, 220),
     )
 
