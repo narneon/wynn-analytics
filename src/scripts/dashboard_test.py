@@ -6,11 +6,11 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter
 from pip._internal.resolution.resolvelib import candidates
 
 OUTPUT_DIR = Path("data/reports")
-OUTPUT_PATH = OUTPUT_DIR / "pillow_dashboard_test.png"
+OUTPUT_PATH = OUTPUT_DIR / "sample_digest.png"
 
-RAID = 'nog'
+RAID = 'wtp'
 
-ICON_PATH = Path(f"data/assets/{RAID}_icon.png")
+ICON_PATH = Path(f"assets/{RAID}_icon.png")
 
 W, H = 1600, 1875
 
