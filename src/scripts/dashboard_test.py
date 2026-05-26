@@ -298,7 +298,13 @@ def draw_pie(draw, center, radius, values, labels, colors, legend_x=None, legend
     if legend_y is None:
         legend_y = center[1] - 100
 
-    for i, (label, value, color) in enumerate(zip(labels, values, colors)):
+    legend_data = sorted(
+        zip(labels, values, colors),
+        key=lambda x: x[1],
+        reverse=True,
+    )
+
+    for i, (label, value, color) in enumerate(legend_data):
         y = legend_y + i * 42
         draw.ellipse([legend_x, y + 6, legend_x + 20, y + 26], fill=color, outline=COLORS["gold_dim"])
         draw.text((legend_x + 34, y), label, font=FONT_BODY, fill=COLORS["text"])
