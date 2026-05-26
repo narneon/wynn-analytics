@@ -36,7 +36,6 @@ COLORS = {
     "bg2": (12, 22, 18),
     "gold_dim": (93, 82, 37),
     "title_text": (212, 212, 212),
-    "accent": (0, 0, 0),
     "text": (230, 211, 157),
     "muted": (170, 154, 103),
 
@@ -348,13 +347,13 @@ def draw_divider(draw, y, accent_color):
     draw.polygon(diamond, outline=COLORS["gold_dim"], fill=accent_color, width=2)
 
 
-def draw_panel(draw, box, title=None):
+def draw_panel(draw, box, accent_color, title=None):
     x1, y1, x2, y2 = box
 
     draw.rectangle(box, outline=COLORS["gold_dim"], width=2)
 
     inner = [x1 + 6, y1 + 6, x2 - 6, y2 - 6]
-    draw.rectangle(inner, outline=COLORS["accent"], width=2)
+    draw.rectangle(inner, outline=accent_color, width=2)
 
     if title:
         bbox = draw.textbbox((0, 0), title, font=FONT_SECTION)
@@ -782,7 +781,7 @@ def generate_single_raid_dashboard(dashboard_data: dict) -> Path:
     )
     panel_x1, panel_y1, panel_x2, panel_y2 = panel
 
-    draw_panel(draw, panel, "Ultimate Usage")
+    draw_panel(draw, panel, accent_color,"Ultimate Usage")
     ult_lines = sorted(
         [
             (
