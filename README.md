@@ -1,361 +1,216 @@
-# Wynncraft Analytics Pipeline
+# Wynn Analytics
 
-A lightweight async analytics pipeline for tracking hourly Wynncraft raid activity.
+A large-scale Wynncraft raid analytics pipeline focused on tracking raid participation, archetype trends, skill point distributions, and long-term gameplay patterns.
 
-This project continuously polls Wynncraft APIs, tracks online player activity, computes hourly raid completion deltas per character, classifies archetypes from ability trees, and stores analytics data in BigQuery for later reporting and visualization.
+The project continuously polls Wynncraft player data, computes hourly raid deltas, stores historical snapshots in BigQuery, and generates automated visual daily reports delivered directly to Discord.
 
 ---
 
 # Features
 
-* Async API polling with `aiohttp`
-* Multi-key API throughput scaling
-* Hourly raid delta tracking
-* Character-level raid analytics
-* Archetype classification from ability trees
-* BigQuery storage backend
-* Lightweight SQLite operational state
-* Pause/resume support
-* Dry-run support for testing
-* Long-running single-process architecture
+## Hourly Raid Tracking
+
+The tracker continuously:
+
+* Polls online player data from the Wynncraft API
+* Detects raid completion deltas
+* Tracks per-character raid activity
+* Preserves historical raid progression over time
+
+---
+
+## Archetype Analytics
+
+The pipeline records:
+
+* Archetype usage
+* Unique player counts
+* Completion totals
+* Average skill point distributions
+* Completion-adjusted participation
+
+---
+
+## Ultimate Usage Tracking
+
+Daily analysis also tracks archetype ultimate usage rates by:
+
+* Fetching ability trees
+* Detecting equipped ultimates
+* Aggregating per-archetype ultimate adoption
+
+Players with hidden character data are automatically excluded from ultimate lookups.
+
+---
+
+## Automated Daily Reports
+
+Every day the system:
+
+* Aggregates the previous day's raid activity
+* Generates stylized dashboard images
+* Uploads summaries directly to Discord
+* Stores historical digest rows in BigQuery
+
+The dashboard includes:
+
+* Class participation pie charts
+* Archetype completion comparisons
+* Skill point radar charts
+* Ultimate usage panels
+* Historical trend visualizations
+
+---
+
+# Architecture
+
+```text
+Wynncraft API
+    ↓
+Hourly Scraper
+    ↓
+Delta Computation
+    ↓
+SQLite State Cache
+    ↓
+BigQuery Historical Storage
+    ↓
+Daily Aggregation
+    ↓
+Pillow Dashboard Rendering
+    ↓
+Discord Reporting
+```
 
 ---
 
 # Tech Stack
 
-| Component      | Technology            |
-| -------------- | --------------------- |
-| Language       | Python                |
-| Runtime        | Asyncio               |
-| HTTP Client    | aiohttp               |
-| Database       | BigQuery              |
-| Local State    | SQLite                |
-| Hosting Target | Google Compute Engine |
-| VM Target      | e2-micro              |
+## Backend
+
+* Python
+* asyncio
+* aiohttp
+
+## Storage
+
+* BigQuery
+* SQLite
+
+## Reporting
+
+* Pillow
+* Discord Webhooks
+
+## Infrastructure
+
+* Google Cloud VM
+* systemd
 
 ---
 
-# Project Structure
+# Data Stored
 
-```text
-player-tracker/
-├── src/
-│   ├── api/
-│   │   └── wynn_api.py
-│   │
-│   ├── collectors/
-│   │   ├── online_players.py
-│   │   ├── raid_tracker.py
-│   │   └── archetype_classifier.py
-│   │
-│   ├── config/
-│   │   └── settings.py
-│   │
-│   ├── database/
-│   │   ├── bigquery_client.py
-│   │   └── sqlite_store.py
-│   │
-│   ├── utils/
-│   │   └── logging_utils.py
-│   │
-│   ├── Scripts/
-│   │   ├── test_wynn_api.py
-│   │   ├── test_online_players.py
-│   │   ├── test_raid_tracker.py
-│   │   └── test_archetype_api_flow.py
-│   │
-│   └── main.py
-│
-├── data/
-│   ├── logs/
-│   ├── players.db
-│   └── PAUSE
-│
-├── requirements.txt
-├── .env
-├── .gitignore
-└── README.md
-```
+## Hourly Raid Data
+
+The system stores:
+
+* Player ID
+* Character ID
+* Archetype
+* Skill points
+* Timestamp
+* Per-raid completion deltas
+
+## Daily Digest Data
+
+Daily summaries include:
+
+* Raid
+* Archetype
+* Unique players
+* Total completions
+* Average skill points
+* Ultimate usage counts
 
 ---
 
-# Data Flow
+# Discord Reporting
 
-```text
-Wynncraft API
-    ↓
-Online player polling
-    ↓
-SQLite seen-player tracking
-    ↓
-Hourly player scans
-    ↓
-Raid delta computation
-    ↓
-Ability tree fetch
-    ↓
-Archetype classification
-    ↓
-BigQuery inserts
-    ↓
-Future Discord reporting/charts
-```
+The project supports:
+
+* Automatic daily report posting
+* Existing forum-thread integration
+* Multi-image dashboard uploads
+* Scheduled digest generation
 
 ---
 
-# Database Tables
+# Configuration
 
-## hourly_raid_data
-
-Stores character-level hourly raid deltas.
-
-### Columns
-
-| Column       | Description                    |
-| ------------ | ------------------------------ |
-| player_id    | Player UUID                    |
-| character_id | Character UUID                 |
-| player_name  | Username                       |
-| timestamp    | UTC timestamp                  |
-| archetype    | Classified archetype           |
-| str          | Strength skill points          |
-| dex          | Dexterity skill points         |
-| int          | Intelligence skill points      |
-| def          | Defence skill points           |
-| agi          | Agility skill points           |
-| nog_delta    | Nest of the Grootslangs delta  |
-| nol_delta    | Orphion's Nexus of Light delta |
-| tcc_delta    | The Canyon Colossus delta      |
-| tna_delta    | The Nameless Anomaly delta     |
-| wtp_delta    | The Wartorn Palace delta       |
-
-### Notes
-
-* Partitioned by `DAY(timestamp)`
-* Partition filter required
-* Only rows with at least one nonzero raid delta are inserted
-* Baseline scans initialize local state without inserting rows
-* `archetype` is nullable
-
----
-
-## online_player_count
-
-Stores periodic online player totals.
-
-### Columns
-
-| Column       | Description          |
-| ------------ | -------------------- |
-| timestamp    | UTC timestamp        |
-| player_count | Total online players |
-
----
-
-# Local SQLite State
-
-SQLite is used only for operational state.
-
-It stores:
-
-* Seen players during the current hour
-* Most recent known raid totals per character
-
-SQLite is NOT the source of truth.
-BigQuery is the permanent analytics store.
-
----
-
-# Environment Variables
-
-Example `.env`:
+Example environment variables:
 
 ```env
-# Wynn API Keys
-WYNN_API_KEYS=key1,key2,key3,key4,key5
-
-# BigQuery
-GOOGLE_APPLICATION_CREDENTIALS=../../service-account.json
-BQ_PROJECT_ID=your-project-id
-BQ_DATASET=your_dataset
-BQ_RAID_TABLE=hourly_raid_data
-BQ_ONLINE_TABLE=online_player_count
-
-# Runtime
-ONLINE_POLL_SECONDS=300
-GLOBAL_CONCURRENCY=40
-DRY_RUN=true
-
-# Pause file
-PAUSE_FILE=data/PAUSE
+DISCORD_WEBHOOK_URL=
+BQ_PROJECT_ID=
+BQ_DATASET=
+BQ_HOURLY_TABLE=
+BQ_DAILY_TABLE=
+REPORT_OUTPUT_DIR=data/reports
+DISCORD_WEBHOOK_URL=
+DAILY_DIGEST_HOUR_UTC=17
+DAILY_DIGEST_MINUTE_UTC=30
 ```
 
 ---
 
-# Installation
+# Running Locally
 
-## 1. Create Virtual Environment
-
-```bash
-python -m venv .venv
-```
-
-Activate:
-
-### Windows
-
-```bash
-.venv\Scripts\activate
-```
-
-### Linux/macOS
-
-```bash
-source .venv/bin/activate
-```
-
----
-
-## 2. Install Dependencies
+## Install Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
----
-
-## 3. Configure Environment
-
-Create:
-
-```text
-.env
-```
-
-Add your API keys and BigQuery configuration.
-
----
-
-# Running Tests
-
-## Wynn API Parsing
-
-```bash
-python -m src.scripts.test_wynn_api
-```
-
-## Online Player Collection
-
-```bash
-python -m src.scripts.test_online_players
-```
-
-## Raid Tracker
-
-```bash
-python -m src.scripts.test_raid_tracker
-```
-
-## Archetype Flow
-
-```bash
-python -m src.scripts.test_archetype_api_flow
-```
-
----
-
-# Running the Scraper
+## Run Main Scraper
 
 ```bash
 python -m src.main
 ```
 
----
-
-# Pause / Resume
-
-Pause the scraper:
-
-### Linux/macOS
+## Run Daily Digest Test
 
 ```bash
-touch data/PAUSE
+python -m src.Scripts.test_daily_digest
 ```
 
-### Windows PowerShell
+---
 
-```powershell
-New-Item data/PAUSE
-```
+# Deployment
 
-Resume:
+The production deployment runs on a Google Cloud VM using systemd.
 
-### Linux/macOS
+Typical deploy flow:
 
 ```bash
-rm data/PAUSE
+sudo systemctl stop wynn-analytics
+cd ~/wynn-analytics
+git pull
+source .venv/bin/activate
+pip install -r requirements.txt
+sudo systemctl start wynn-analytics
 ```
 
-### Windows PowerShell
-
-```powershell
-Remove-Item data/PAUSE
-```
-
 ---
 
-# Dry Run Mode
+# Current Focus
 
-Set:
+Current development priorities include:
 
-```env
-DRY_RUN=true
-```
-
-This will:
-
-* Run the full pipeline
-* Poll APIs
-* Compute deltas
-* Update SQLite
-* Run archetype classification
-* Skip BigQuery writes
-
-Useful for long-duration stability testing.
+* Improved dashboard rendering
+* Historical trend analysis
+* Player-level fallback raid tracking
+* Ability tree caching
+* Query and API call optimization
 
 ---
-
-# Archetype Classification
-
-Archetypes are inferred from the Wynncraft abilities endpoint.
-
-The classifier:
-
-1. Fetches ability tree data
-2. Extracts ability IDs
-3. Matches IDs against archetype marker sets
-4. Selects the highest-scoring archetype
-
-Unknown or hidden builds return `NULL`.
-
----
-
-# Operational Notes
-
-* Designed primarily for network I/O workloads
-* Intended to run on a single low-resource VM
-* Async architecture avoids heavy threading requirements
-* BigQuery inserts are batched
-* Ability trees are only fetched for characters with nonzero raid deltas
-
----
-
-# Planned Future Features
-
-* Discord reporting
-* Automated chart generation
-* Historical analytics dashboards
-* Materialized BigQuery views
-* Advanced archetype heuristics
-* Activity heatmaps
-* Per-raid trend analys
