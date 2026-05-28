@@ -511,7 +511,9 @@ def draw_radar(draw, center, radius, series, colors, labels):
 def draw_bar_chart(draw, box, labels, players, completions):
     x1, y1, x2, y2 = box
     max_players = max(players) if players else 1
+    max_players += 20 - max_players % 20
     max_completions = max(completions) if completions else 1
+    max_completions += 100 - max_completions % 100
 
     left_label_size = draw.textbbox((0, 0), f"{int(round(max_players))}", font=FONT_SMALL)
     left_padding = left_label_size[2]-left_label_size[0]
