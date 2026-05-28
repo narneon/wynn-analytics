@@ -60,6 +60,11 @@ The dashboard includes:
 * Ultimate usage panels
 * Historical trend visualizations
 
+## Example Daily Dashboard
+
+![Daily Dashboard](docs/sample_digest.png)
+
+Artwork assets created by @.dwagonic
 ---
 
 # Architecture
@@ -144,11 +149,6 @@ The project supports:
 * Multi-image dashboard uploads
 * Scheduled digest generation
 
-## Example Daily Dashboard
-
-![Daily Dashboard](docs/sample_digest.png)
-
-Artwork assets created by @.dwagonic
 ---
 
 # Configuration
