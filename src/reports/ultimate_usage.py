@@ -91,7 +91,7 @@ async def compute_ultimate_usage_counts(
     session: aiohttp.ClientSession,
     raider_rows: list[dict],
 ) -> dict[tuple[str, str], int]:
-    counts: dict[tuple[str, str], int] = {}
+    counts: dict[tuple[str, str], set[str]] = {}
 
     unique_rows_by_key = {}
 
@@ -144,8 +144,13 @@ async def compute_ultimate_usage_counts(
         raid, archetype, has_ult = result
 
         if has_ult:
-            counts[(raid, archetype)] = counts.get((raid, archetype), 0) + 1
+            key = (raid, archetype)
+            player_ids = counts.setdefault(key, set())
+            player_ids.add(player_id)
 
     logger.info(f"Computed ultimate usage for {len(unique_rows)} unique rows")
 
-    return counts
+    return {
+        key: len(player_ids)
+        for key, player_ids in counts.items()
+    }

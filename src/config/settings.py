@@ -65,4 +65,7 @@ DISCORD_WEBHOOK_URL = _get_required_env("DISCORD_WEBHOOK_URL")
 DAILY_DIGEST_HOUR_UTC = _get_int_env("DAILY_DIGEST_HOUR_UTC", 17)
 DAILY_DIGEST_MINUTE_UTC = _get_int_env("DAILY_DIGEST_MINUTE_UTC", 30)
 
+# Weekday on which the weekly digest fires (0=Mon … 6=Sun, default 4=Fri)
+WEEKLY_DIGEST_WEEKDAY = _get_int_env("WEEKLY_DIGEST_WEEKDAY", 4)
+
 REPORT_OUTPUT_DIR = Path(os.getenv("REPORT_OUTPUT_DIR", "data/reports"))

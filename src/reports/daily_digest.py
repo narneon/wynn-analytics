@@ -9,6 +9,7 @@ from src.config.settings import (
     BQ_DAILY_TABLE,
     DAILY_DIGEST_HOUR_UTC,
     DAILY_DIGEST_MINUTE_UTC,
+    WEEKLY_DIGEST_WEEKDAY,
 )
 from src.utils.logging_utils import setup_logger
 
@@ -23,6 +24,33 @@ RAIDS = [
     {"raid": "tna", "raid_name": "The Nameless Anomaly", "delta_column": "tna_delta"},
     {"raid": "wtp", "raid_name": "The Wartorn Palace", "delta_column": "wtp_delta"},
 ]
+
+
+def weekly_winda(now: datetime | None = None) -> dict:
+    if now is None:
+        now = datetime.now(timezone.utc)
+
+    sincew = (now.weekday() - WEEKLY_DIGEST_WEEKDAY) % 7
+
+    digest_end = datetime.combine(
+        (now - timedelta(days=sincew)).date(),
+        time(
+            hour=DAILY_DIGEST_HOUR_UTC,
+            minute=DAILY_DIGEST_MINUTE_UTC + 1,
+        ),
+        tzinfo=timezone.utc,
+    )
+
+    if now < digest_end:
+        digest_end -= timedelta(weeks=1)
+
+    digest_start = digest_end - timedelta(weeks=1, minutes=1)
+
+    return {
+        "digest_date": digest_end.date(),
+        "start_time_utc": digest_start,
+        "end_time_utc": digest_end,
+    }
 
 
 def get_daily_digest_window(now: datetime | None = None) -> dict:
@@ -160,6 +188,66 @@ class DailyDigestService:
 
         query = "\nUNION DISTINCT\n".join(union_queries)
 
+        query_parameters = [
+            bigquery.ScalarQueryParameter("start_time", "TIMESTAMP", window["start_time_utc"]),
+            bigquery.ScalarQueryParameter("end_time", "TIMESTAMP", window["end_time_utc"]),
+        ]
+
+        for raid_config in RAIDS:
+            query_parameters.append(
+                bigquery.ScalarQueryParameter(
+                    f"raid_{raid_config['raid']}",
+                    "STRING",
+                    raid_config["raid"],
+                )
+            )
+
+        job_config = bigquery.QueryJobConfig(query_parameters=query_parameters)
+
+        rows = list(self.client.query(query, job_config=job_config).result())
+        return [dict(row) for row in rows]
+
+    def fetch_weekly_digest_rows(self) -> list[dict]:
+        window = weekly_winda()
+        all_rows = []
+
+        for raid_config in RAIDS:
+            all_rows.extend(
+                self._fetch_raid_archetype_rows(
+                    raid=raid_config["raid"],
+                    delta_column=raid_config["delta_column"],
+                    digest_date=window["digest_date"],
+                    start_time_utc=window["start_time_utc"],
+                    end_time_utc=window["end_time_utc"],
+                )
+            )
+
+        logger.info(
+            f"Fetched {len(all_rows)} weekly digest rows "
+            f"for digest_date={window['digest_date']}"
+        )
+        return all_rows
+
+    def fetch_weekly_raider_rows(self) -> list[dict]:
+        window = weekly_winda()
+        union_queries = []
+
+        for raid_config in RAIDS:
+            union_queries.append(f"""
+            SELECT
+                player_id,
+                character_id,
+                @raid_{raid_config["raid"]} AS raid,
+                COALESCE(archetype, 'Unknown') AS archetype
+            FROM `{self.hourly_table}`
+            WHERE timestamp >= @start_time
+              AND timestamp < @end_time
+              AND {raid_config["delta_column"]} > 0
+              AND archetype IS NOT NULL
+              AND archetype != 'Unknown'
+            """)
+
+        query = "\nUNION DISTINCT\n".join(union_queries)
         query_parameters = [
             bigquery.ScalarQueryParameter("start_time", "TIMESTAMP", window["start_time_utc"]),
             bigquery.ScalarQueryParameter("end_time", "TIMESTAMP", window["end_time_utc"]),

@@ -5,7 +5,7 @@ from pathlib import Path
 from src.api.wynn_api import WynnAPI
 from src.collectors.online_players import collect_online_players_once
 from src.collectors.raid_tracker import collect_raid_deltas_once
-from src.config.settings import ONLINE_POLL_SECONDS, PAUSE_FILE
+from src.config.settings import ONLINE_POLL_SECONDS, PAUSE_FILE, WEEKLY_DIGEST_WEEKDAY
 from src.database.bigquery_client import BigQueryClient
 from src.database.sqlite_store import SQLiteStore
 from src.utils.logging_utils import setup_logger
@@ -70,6 +70,22 @@ def seconds_until_next_daily_digest() -> float:
     return (next_digest - now).total_seconds()
 
 
+def suntil_week() -> float:
+    now = utc_now()
+    days_ahead = (WEEKLY_DIGEST_WEEKDAY - now.weekday()) % 7
+
+    next_digest = now.replace(
+        hour=DAILY_DIGEST_HOUR_UTC,
+        minute=DAILY_DIGEST_MINUTE_UTC,
+        second=0,
+        microsecond=0,
+    ) + timedelta(days=days_ahead)
+
+    if now >= next_digest:
+        next_digest += timedelta(weeks=1)
+    return (next_digest - now).total_seconds()
+
+
 async def wait_if_paused():
     pause_path = Path(PAUSE_FILE)
 
@@ -126,6 +142,52 @@ async def raid_scan_loop(api, session, sqlite_store, bq):
 
         logger.info(f"Sleeping {sleep_seconds:.1f}s until next raid scan boundary")
         await asyncio.sleep(sleep_seconds)
+
+
+async def weeklyloop(api, session):
+    digest_service = DailyDigestService()
+
+    while True:
+        sleep_seconds = suntil_week()
+        logger.info(f"Weekly for {sleep_seconds:.1f}s")
+        await asyncio.sleep(sleep_seconds)
+        await wait_if_paused()
+
+        try:
+            logger.info("Starting week")
+
+            digest_rows = digest_service.fetch_weekly_digest_rows()
+            raider_rows = digest_service.fetch_weekly_raider_rows()
+
+            ult_counts = await compute_ultimate_usage_counts(
+                api=api,
+                session=session,
+                raider_rows=raider_rows,
+            )
+
+            for row in digest_rows:
+                key = (row["raid"], row["archetype"])
+                row["ult_uses"] = ult_counts.get(key, 0)
+
+            image_paths = generate_raid_digest_images(digest_rows, period_label="Weekly")
+
+            current_date = datetime.now(timezone.utc).strftime("%m/%d/%Y")
+
+            message = (
+                "Weekly Wynncraft Raid Report\n"
+                f"Date: {current_date}\n"
+                "Made by: Wynn Analytics"
+            )
+
+            await send_discord_files(
+                image_paths=image_paths,
+                content=message,
+            )
+
+            logger.info("Weekly Discord digest complete")
+
+        except Exception:
+            logger.exception("Weekly digest failed")
 
 
 async def daily_digest_loop(api, session):
@@ -190,6 +252,7 @@ async def main():
                 online_poll_loop(api, session, sqlite_store, bq),
                 raid_scan_loop(api, session, sqlite_store, bq),
                 daily_digest_loop(api, session),
+                weeklyloop(api, session),
             )
 
     except KeyboardInterrupt:

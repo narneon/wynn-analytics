@@ -508,7 +508,7 @@ def draw_radar(draw, center, radius, series, colors, labels):
         )
 
 
-def draw_bar_chart(draw, box, labels, players, completions):
+def draw_bar_chart(draw, box, labels, players, completions, period_label: str = "Daily"):
     x1, y1, x2, y2 = box
     max_players = max(players) if players else 1
     max_players += 20 - max_players % 20
@@ -625,7 +625,7 @@ def draw_bar_chart(draw, box, labels, players, completions):
             fill=COLORS["text"],
         )
 
-    title = "Archetype Tallies For Today"
+    title = f"Archetype Tallies For This {period_label}"
 
     bbox = draw.textbbox((0, 0), title, font=FONT_SECTION)
     text_w = bbox[2] - bbox[0]
@@ -668,7 +668,10 @@ def paste_icon(img, icon_path):
     img.alpha_composite(icon, (x, y))
 
 
-def generate_raid_digest_images(digest_rows: list[dict]) -> list[Path]:
+def generate_raid_digest_images(
+    digest_rows: list[dict],
+    period_label: str = "Daily",
+) -> list[Path]:
     REPORT_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     generated_paths = []
@@ -681,6 +684,7 @@ def generate_raid_digest_images(digest_rows: list[dict]) -> list[Path]:
 
         image_path = generate_single_raid_dashboard(
             dashboard_data=dashboard_data,
+            period_label=period_label,
         )
 
         generated_paths.append(image_path)
@@ -688,13 +692,16 @@ def generate_raid_digest_images(digest_rows: list[dict]) -> list[Path]:
     return generated_paths
 
 
-def generate_single_raid_dashboard(dashboard_data: dict) -> Path:
+def generate_single_raid_dashboard(
+    dashboard_data: dict,
+    period_label: str = "Daily",
+) -> Path:
     raid = dashboard_data["raid"]
     accent_color = RAID_COLORS.get(raid)
     digest_date = dashboard_data["digest_date"]
     total_completions = dashboard_data["total_completions"]
 
-    output_path = REPORT_OUTPUT_DIR / f"{raid}_daily_digest.png"
+    output_path = REPORT_OUTPUT_DIR / f"{raid}_{period_label.lower()}_digest.png"
     icon = Path(f"assets/{raid}_icon.png")
 
     img = Image.new("RGBA", (W, H), COLORS["bg"])
@@ -705,7 +712,7 @@ def generate_single_raid_dashboard(dashboard_data: dict) -> Path:
     draw_outer_border(draw, accent_color)
     paste_icon(img, icon)
 
-    draw_centered_text(draw, W // 2, W - 30, "Daily Raid Analysis", 150, FONT_TITLE, COLORS["text"])
+    draw_centered_text(draw, W // 2, W - 30, f"{period_label} Raid Analysis", 150, FONT_TITLE, COLORS["text"])
     draw_centered_text(draw, W // 2, W - 30, f"Date: {digest_date}", 250, FONT_SUBTITLE, COLORS["title_text"])
     draw_centered_text(draw, W // 2, W - 30, f"Total Completions: {total_completions}", 300, FONT_SUBTITLE, COLORS["title_text"])
 
@@ -930,6 +937,8 @@ def generate_single_raid_dashboard(dashboard_data: dict) -> Path:
 
             for archetype in ARCHETYPE_LIST
         ],
+
+        period_label=period_label,
     )
 
     img.save(output_path)
