@@ -6,32 +6,40 @@ from src.reports.chart_images import generate_raid_digest_images
 from src.reports.daily_digest import (
     DailyDigestService,
     RAIDS,
-    get_daily_digest_window,
+    get_daily_window,
 )
 from src.reports.discord_client import send_discord_files
 from src.reports.ultimate_usage import compute_ultimate_usage_counts
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 async def main():
     digest_service = DailyDigestService()
     api = WynnAPI()
 
-    window = get_daily_digest_window()
+    window = get_daily_window()
+    window = {
+        "digest_date": window["digest_date"] - timedelta(days=1),
+        "start_time_utc": window["start_time_utc"] - timedelta(days=1),
+        "end_time_utc": window["end_time_utc"] - timedelta(days=1),
+    }
+
+    digest_rows = digest_service.fetch_daily_digest_rows(window)
+    raider_rows = digest_service.fetch_daily_raider_rows(window)
 
     print("Digest window:")
     print(f"  digest_date: {window['digest_date']}")
     print(f"  start_time_utc: {window['start_time_utc']}")
     print(f"  end_time_utc: {window['end_time_utc']}")
 
-    digest_rows = digest_service.fetch_daily_digest_rows()
+    # digest_rows = digest_service.fetch_daily_digest_rows()
 
     print(f"\nFetched digest rows: {len(digest_rows)}")
 
     for row in digest_rows[:10]:
         print(row)
 
-    raider_rows = digest_service.fetch_daily_raider_rows()
+    # raider_rows = digest_service.fetch_daily_raider_rows()
 
     print(f"\nFetched raider rows for ult checks: {len(raider_rows)}")
 
@@ -49,9 +57,9 @@ async def main():
         key = (row["raid"], row["archetype"])
         row["ult_uses"] = ult_counts.get(key, 0)
 
-    insert_success = digest_service.insert_daily_digest_rows(digest_rows)
-
-    print(f"\nDaily digest BigQuery insert success: {insert_success}")
+    # insert_success = digest_service.insert_daily_digest_rows(digest_rows)
+    #
+    # print(f"\nDaily digest BigQuery insert success: {insert_success}")
 
     grouped = defaultdict(list)
 
@@ -71,7 +79,7 @@ async def main():
         "TEST MESSAGE\n"
         "Daily Wynncraft Raid Report\n"
         f"Date: {current_date}\n"
-        "Wynn Analytics Link: <https://discord.gg/xxxQ7PJB4k>"
+        "Made by Wynn Analytics"
     )
 
     discord_success = await send_discord_files(

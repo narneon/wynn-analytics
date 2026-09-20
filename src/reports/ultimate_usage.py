@@ -65,7 +65,7 @@ async def _check_ultimate_worker(
     session: aiohttp.ClientSession,
     row: dict,
     semaphore: asyncio.Semaphore,
-) -> tuple[str, str, bool] | None:
+) -> tuple[str, str, str, bool] | None:
     async with semaphore:
         player_id = row.get("player_id")
         character_id = row.get("character_id")
@@ -83,7 +83,7 @@ async def _check_ultimate_worker(
             archetype=archetype,
         )
 
-        return raid, archetype, has_ult
+        return raid, archetype, player_id, has_ult
 
 
 async def compute_ultimate_usage_counts(
@@ -91,7 +91,7 @@ async def compute_ultimate_usage_counts(
     session: aiohttp.ClientSession,
     raider_rows: list[dict],
 ) -> dict[tuple[str, str], int]:
-    counts: dict[tuple[str, str], set[str]] = {}
+    players_with_ult: dict[tuple[str, str], set[str]] = {}
 
     unique_rows_by_key = {}
 
@@ -141,16 +141,21 @@ async def compute_ultimate_usage_counts(
         if result is None:
             continue
 
-        raid, archetype, has_ult = result
+        raid, archetype, player_id, has_ult = result
 
         if has_ult:
             key = (raid, archetype)
-            player_ids = counts.setdefault(key, set())
-            player_ids.add(player_id)
+
+            if key not in players_with_ult:
+                players_with_ult[key] = set()
+
+            players_with_ult[key].add(player_id)
 
     logger.info(f"Computed ultimate usage for {len(unique_rows)} unique rows")
 
-    return {
+    counts = {
         key: len(player_ids)
-        for key, player_ids in counts.items()
+        for key, player_ids in players_with_ult.items()
     }
+
+    return counts

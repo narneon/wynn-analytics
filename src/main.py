@@ -70,7 +70,7 @@ def seconds_until_next_daily_digest() -> float:
     return (next_digest - now).total_seconds()
 
 
-def suntil_week() -> float:
+def seconds_until_next_weekly_digest() -> float:
     now = utc_now()
     days_ahead = (WEEKLY_DIGEST_WEEKDAY - now.weekday()) % 7
 
@@ -148,7 +148,7 @@ async def weeklyloop(api, session):
     digest_service = DailyDigestService()
 
     while True:
-        sleep_seconds = suntil_week()
+        sleep_seconds = seconds_until_next_weekly_digest()
         logger.info(f"Weekly for {sleep_seconds:.1f}s")
         await asyncio.sleep(sleep_seconds)
         await wait_if_paused()

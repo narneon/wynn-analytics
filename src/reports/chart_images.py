@@ -625,7 +625,7 @@ def draw_bar_chart(draw, box, labels, players, completions, period_label: str = 
             fill=COLORS["text"],
         )
 
-    title = f"Archetype Tallies For This {period_label}"
+    title = "Archetype Tallies"
 
     bbox = draw.textbbox((0, 0), title, font=FONT_SECTION)
     text_w = bbox[2] - bbox[0]

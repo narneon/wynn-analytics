@@ -26,7 +26,7 @@ RAIDS = [
 ]
 
 
-def weekly_winda(now: datetime | None = None) -> dict:
+def get_weekly_window(now: datetime | None = None) -> dict:
     if now is None:
         now = datetime.now(timezone.utc)
 
@@ -53,7 +53,7 @@ def weekly_winda(now: datetime | None = None) -> dict:
     }
 
 
-def get_daily_digest_window(now: datetime | None = None) -> dict:
+def get_daily_window(now: datetime | None = None) -> dict:
     if now is None:
         now = datetime.now(timezone.utc)
 
@@ -84,8 +84,9 @@ class DailyDigestService:
         self.hourly_table = f"{GCP_PROJECT_ID}.{BQ_DATASET}.{BQ_RAID_TABLE}"
         self.digest_table = f"{GCP_PROJECT_ID}.{BQ_DATASET}.{BQ_DAILY_TABLE}"
 
-    def fetch_daily_digest_rows(self) -> list[dict]:
-        window = get_daily_digest_window()
+    def fetch_daily_digest_rows(self, window: dict | None = None) -> list[dict]:
+        if window is None:
+            window = get_daily_window()
         all_rows = []
 
         for raid_config in RAIDS:
@@ -167,8 +168,9 @@ class DailyDigestService:
 
         return results
 
-    def fetch_daily_raider_rows(self) -> list[dict]:
-        window = get_daily_digest_window()
+    def fetch_daily_raider_rows(self, window: dict | None = None) -> list[dict]:
+        if window is None:
+            window = get_daily_window()
         union_queries = []
 
         for raid_config in RAIDS:
@@ -208,7 +210,7 @@ class DailyDigestService:
         return [dict(row) for row in rows]
 
     def fetch_weekly_digest_rows(self) -> list[dict]:
-        window = weekly_winda()
+        window = get_weekly_window()
         all_rows = []
 
         for raid_config in RAIDS:
@@ -229,7 +231,7 @@ class DailyDigestService:
         return all_rows
 
     def fetch_weekly_raider_rows(self) -> list[dict]:
-        window = weekly_winda()
+        window = get_weekly_window()
         union_queries = []
 
         for raid_config in RAIDS:
