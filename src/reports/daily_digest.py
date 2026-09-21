@@ -10,6 +10,8 @@ from src.config.settings import (
     DAILY_DIGEST_HOUR_UTC,
     DAILY_DIGEST_MINUTE_UTC,
     WEEKLY_DIGEST_WEEKDAY,
+    WEEKLY_DIGEST_HOUR_UTC,
+    WEEKLY_DIGEST_MINUTE_UTC,
 )
 from src.utils.logging_utils import setup_logger
 
@@ -73,8 +75,8 @@ def get_weekly_window(now: datetime | None = None) -> dict:
     digest_end = datetime.combine(
         (now - timedelta(days=sincew)).date(),
         time(
-            hour=DAILY_DIGEST_HOUR_UTC,
-            minute=DAILY_DIGEST_MINUTE_UTC + 1,
+            hour=WEEKLY_DIGEST_HOUR_UTC,
+            minute=WEEKLY_DIGEST_MINUTE_UTC + 1,
         ),
         tzinfo=timezone.utc,
     )
