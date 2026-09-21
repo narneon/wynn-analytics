@@ -5,16 +5,23 @@ from pathlib import Path
 from src.api.wynn_api import WynnAPI
 from src.collectors.online_players import collect_online_players_once
 from src.collectors.raid_tracker import collect_raid_deltas_once
-from src.config.settings import ONLINE_POLL_SECONDS, PAUSE_FILE, WEEKLY_DIGEST_WEEKDAY
 from src.database.bigquery_client import BigQueryClient
 from src.database.sqlite_store import SQLiteStore
 from src.utils.logging_utils import setup_logger
 
-from src.reports.daily_digest import DailyDigestService
+from src.reports.daily_digest import DailyDigestService, get_weekly_window
 from src.reports.chart_images import generate_raid_digest_images
 from src.reports.discord_client import send_discord_files
 from src.reports.ultimate_usage import compute_ultimate_usage_counts
-from src.config.settings import DAILY_DIGEST_HOUR_UTC, DAILY_DIGEST_MINUTE_UTC
+from src.config.settings import (
+    ONLINE_POLL_SECONDS,
+    PAUSE_FILE,
+    DAILY_DIGEST_HOUR_UTC,
+    DAILY_DIGEST_MINUTE_UTC,
+    WEEKLY_DIGEST_WEEKDAY,
+    WEEKLY_DIGEST_HOUR_UTC,
+    WEEKLY_DIGEST_MINUTE_UTC,
+)
 
 logger = setup_logger(__name__)
 
@@ -75,14 +82,15 @@ def seconds_until_next_weekly_digest() -> float:
     days_ahead = (WEEKLY_DIGEST_WEEKDAY - now.weekday()) % 7
 
     next_digest = now.replace(
-        hour=DAILY_DIGEST_HOUR_UTC,
-        minute=DAILY_DIGEST_MINUTE_UTC,
+        hour=WEEKLY_DIGEST_HOUR_UTC,
+        minute=WEEKLY_DIGEST_MINUTE_UTC,
         second=0,
         microsecond=0,
     ) + timedelta(days=days_ahead)
 
     if now >= next_digest:
         next_digest += timedelta(weeks=1)
+
     return (next_digest - now).total_seconds()
 
 
@@ -144,32 +152,27 @@ async def raid_scan_loop(api, session, sqlite_store, bq):
         await asyncio.sleep(sleep_seconds)
 
 
-async def weeklyloop(api, session):
+async def weekly_digest_loop():
     digest_service = DailyDigestService()
 
     while True:
         sleep_seconds = seconds_until_next_weekly_digest()
-        logger.info(f"Weekly for {sleep_seconds:.1f}s")
+        logger.info(f"Weekly digest scheduled in {sleep_seconds:.1f}s")
         await asyncio.sleep(sleep_seconds)
+
         await wait_if_paused()
 
         try:
-            logger.info("Starting week")
+            logger.info("Starting weekly Discord digest")
 
-            digest_rows = digest_service.fetch_weekly_digest_rows()
-            raider_rows = digest_service.fetch_weekly_raider_rows()
+            window = get_weekly_window()
 
-            ult_counts = await compute_ultimate_usage_counts(
-                api=api,
-                session=session,
-                raider_rows=raider_rows,
+            digest_rows = digest_service.fetch_period_digest_rows(window)
+
+            image_paths = generate_raid_digest_images(
+                digest_rows,
+                period_label="Weekly",
             )
-
-            for row in digest_rows:
-                key = (row["raid"], row["archetype"])
-                row["ult_uses"] = ult_counts.get(key, 0)
-
-            image_paths = generate_raid_digest_images(digest_rows, period_label="Weekly")
 
             current_date = datetime.now(timezone.utc).strftime("%m/%d/%Y")
 
@@ -252,7 +255,7 @@ async def main():
                 online_poll_loop(api, session, sqlite_store, bq),
                 raid_scan_loop(api, session, sqlite_store, bq),
                 daily_digest_loop(api, session),
-                weeklyloop(api, session),
+                weekly_digest_loop(),
             )
 
     except KeyboardInterrupt:
