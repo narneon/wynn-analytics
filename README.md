@@ -2,7 +2,7 @@
 
 A large-scale Wynncraft raid analytics pipeline focused on tracking raid participation, archetype trends, skill point distributions, and long-term gameplay patterns.
 
-The project continuously polls Wynncraft player data, computes hourly raid deltas, stores historical snapshots in BigQuery, and generates automated visual daily reports delivered directly to Discord.
+The project continuously polls Wynncraft player data, computes hourly raid deltas, stores historical raid activity in BigQuery, and generates automated visual daily and weekly reports delivered directly to Discord. Historical data can also be queried to generate dashboards for arbitrary reporting periods.
 
 ---
 
@@ -43,14 +43,27 @@ Players with hidden character data are automatically excluded from ultimate look
 
 ---
 
-## Automated Daily Reports
+## Automated Reports
 
-Every day the system:
+The system automatically generates both daily and weekly raid analytics reports.
 
-* Aggregates the previous day's raid activity
-* Generates stylized dashboard images
-* Uploads summaries directly to Discord
-* Stores historical digest rows in BigQuery
+Daily reports:
+
+* Aggregate the previous day's raid activity
+* Calculate current ultimate usage through Wynncraft ability-tree data
+* Store historical digest rows in BigQuery
+* Generate five raid-specific dashboard images
+* Upload the dashboards directly to Discord
+
+Weekly reports:
+
+* Aggregate raid activity across the weekly reporting window
+* Calculate completions, player counts, and skill point averages from historical hourly data
+* Calculate historical ultimate usage from stored daily digest data
+* Generate five weekly raid dashboards
+* Upload the dashboards directly to Discord
+
+Historical dashboards can also be generated for arbitrary multi-day reporting periods without making additional Wynncraft API requests.
 
 The dashboard includes:
 
@@ -72,19 +85,24 @@ Artwork assets created by @.dwagonic
 ```text
 Wynncraft API
     ↓
-Hourly Scraper
+Online Player Polling
     ↓
-Delta Computation
+Hourly Raid Delta Tracking
     ↓
 SQLite State Cache
     ↓
 BigQuery Historical Storage
-    ↓
-Daily Aggregation
-    ↓
-Pillow Dashboard Rendering
-    ↓
-Discord Reporting
+    ├───────────────┐
+    ↓               ↓
+Daily Digest    Historical Aggregation
+    ↓               ↓
+Ultimate API    Stored Daily Ultimate Data
+Checks              ↓
+    └───────┬───────┘
+            ↓
+    Pillow Dashboard Rendering
+            ↓
+      Discord Reporting
 ```
 
 ---
@@ -156,15 +174,23 @@ The project supports:
 Example environment variables:
 
 ```env
-DISCORD_WEBHOOK_URL=
-BQ_PROJECT_ID=
+GCP_PROJECT_ID=
 BQ_DATASET=
-BQ_HOURLY_TABLE=
-BQ_DAILY_TABLE=
-REPORT_OUTPUT_DIR=data/reports
+BQ_RAID_TABLE=hourly_raid_data
+BQ_ONLINE_TABLE=online_player_count
+BQ_DAILY_TABLE=daily_raid_data
+
+WYNN_API_KEYS=
 DISCORD_WEBHOOK_URL=
+
 DAILY_DIGEST_HOUR_UTC=17
 DAILY_DIGEST_MINUTE_UTC=30
+
+WEEKLY_DIGEST_WEEKDAY=4
+WEEKLY_DIGEST_HOUR_UTC=18
+WEEKLY_DIGEST_MINUTE_UTC=30
+
+REPORT_OUTPUT_DIR=data/reports```
 ```
 
 ---
@@ -183,27 +209,87 @@ pip install -r requirements.txt
 python -m src.main
 ```
 
-## Run Daily Digest Test
+## Run Reporting Tests
+
+Daily digest:
 
 ```bash
-python -m src.Scripts.test_daily_digest
+python -m src.scripts.daily_digest_test
+```
+
+Weekly digest:
+
+```bash
+python -m src.scripts.weekly_digest_test
+```
+
+Arbitrary period digest:
+```bash
+python -m src.scripts.period_digest_test
+```
+
+## Generate a Historical Period Report
+
+```bash
+python -m src.scripts.period_digest --start 2026-09-01 --end 2026-09-07 --label "Weekly"
 ```
 
 ---
 
 # Deployment
 
-The production deployment runs on a Google Cloud VM using systemd.
+Production runs on a Google Cloud VM using systemd.
 
-Typical deploy flow:
+Deployment is managed through the `wynn-analytics` command.
+
+## Deploy Latest Version
 
 ```bash
-sudo systemctl stop wynn-analytics
-cd ~/wynn-analytics
-git pull
-source .venv/bin/activate
-pip install -r requirements.txt
-sudo systemctl start wynn-analytics
+wynn-analytics deploy
+```
+
+The deployment process:
+
+1. Pauses the scraper
+2. Fetches the latest `origin/main`
+3. Resets tracked repository files to `origin/main`
+4. Activates the Python virtual environment
+5. Installs or updates dependencies
+6. Restarts the systemd service
+7. Resumes the scraper
+
+Production deployments treat `origin/main` as authoritative. Any tracked local changes on the VM are discarded during deployment.
+
+## Service Management
+
+Check the service status:
+
+```bash
+wynn-analytics status
+```
+
+View live logs:
+
+```bash
+wynn-analytics logs
+```
+
+Pause data collection:
+
+```bash
+wynn-analytics pause
+```
+
+Resume data collection:
+
+```bash
+wynn-analytics unpause
+```
+
+Restart the service:
+
+```bash
+wynn-analytics restart
 ```
 
 ---
@@ -212,10 +298,6 @@ sudo systemctl start wynn-analytics
 
 Current development priorities include:
 
-* Improved dashboard rendering
-* Historical trend analysis
-* Player-level fallback raid tracking
-* Ability tree caching
-* Query and API call optimization
+* Individual Ability tree node tracking
 
 ---
