@@ -200,13 +200,16 @@ def build_dashboard_data(
         if archetype == "Unknown":
             continue
 
-        unique_players = row["unique_players"]
+        if row.get("ult_usage_pct") is not None:
+            ult_pct = row["ult_usage_pct"]
+        else:
+            unique_players = row["unique_players"]
 
-        ult_pct = (
-            row["ult_uses"] / unique_players * 100
-            if unique_players > 0
-            else 0
-        )
+            ult_pct = (
+                row["ult_uses"] / unique_players * 100
+                if unique_players > 0
+                else 0
+            )
 
         ultimate_usage[archetype] = round(ult_pct, 1)
 

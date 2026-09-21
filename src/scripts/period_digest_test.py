@@ -1,18 +1,30 @@
+from datetime import date
+
+from src.reports.chart_images import generate_raid_digest_images
 from src.reports.daily_digest import (
     DailyDigestService,
-    get_weekly_window,
+    get_period_window,
 )
 
 
 def main():
-    digest_service = DailyDigestService()
-    window = get_weekly_window()
+    start_date = date(2026, 9, 1)
+    end_date = date(2026, 9, 7)
 
-    print("Weekly period test")
+    window = get_period_window(
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+    print("Period digest test")
     print("------------------")
+    print(f"Start date:  {start_date}")
+    print(f"End date:    {end_date}")
     print(f"Digest date: {window['digest_date']}")
     print(f"Start:       {window['start_time_utc']}")
     print(f"End:         {window['end_time_utc']}")
+
+    digest_service = DailyDigestService()
 
     rows = digest_service.fetch_period_digest_rows(window)
 
@@ -33,37 +45,34 @@ def main():
             f"ult={row['ult_usage_pct']}"
         )
 
-    print("\nValidation")
-    print("----------")
-
-    assert all(
-        row["completions"] >= 0
-        for row in rows
-    )
-
-    assert all(
-        row["unique_players"] >= 0
-        for row in rows
-    )
-
-    assert all(
-        row["ult_uses"] is None
-        for row in rows
-    )
-
-    ult_rows = [
+    known_rows = [
         row
         for row in rows
-        if row["ult_usage_pct"] is not None
+        if row["archetype"] != "Unknown"
     ]
 
-    print(
-        f"{len(ult_rows)} / {len(rows)} rows "
-        "have stored ultimate usage data."
+    assert all(
+        row["ult_usage_pct"] is not None
+        for row in known_rows
     )
 
-    for row in ult_rows:
-        assert 0 <= row["ult_usage_pct"] <= 100
+    assert all(
+        0 <= row["ult_usage_pct"] <= 100
+        for row in known_rows
+    )
+
+    image_paths = generate_raid_digest_images(
+        rows,
+        period_label="Period Test",
+    )
+
+    print("\nGenerated images:")
+    print("-----------------")
+
+    for path in image_paths:
+        print(path)
+
+    assert len(image_paths) == 5
 
     print("\nAll period digest tests passed.")
 

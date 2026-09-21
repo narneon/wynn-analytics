@@ -1,4 +1,4 @@
-from datetime import datetime, time, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 
 from google.cloud import bigquery
 
@@ -25,6 +25,44 @@ RAIDS = [
     {"raid": "wtp", "raid_name": "The Wartorn Palace", "delta_column": "wtp_delta"},
 ]
 
+def get_period_window(
+    start_date: date,
+    end_date: date,
+) -> dict:
+    """
+    Build a reporting window covering complete daily reporting periods.
+
+    start_date and end_date are inclusive.
+
+    The window intentionally extends one minute past the nominal
+    end time to preserve late-arriving hourly raid data.
+    """
+    if end_date < start_date:
+        raise ValueError("end_date must be on or after start_date")
+
+    digest_start = datetime.combine(
+        start_date,
+        time(
+            hour=DAILY_DIGEST_HOUR_UTC,
+            minute=DAILY_DIGEST_MINUTE_UTC,
+        ),
+        tzinfo=timezone.utc,
+    )
+
+    digest_end = datetime.combine(
+        end_date + timedelta(days=1),
+        time(
+            hour=DAILY_DIGEST_HOUR_UTC,
+            minute=DAILY_DIGEST_MINUTE_UTC + 1,
+        ),
+        tzinfo=timezone.utc,
+    )
+
+    return {
+        "digest_date": end_date + timedelta(days=1),
+        "start_time_utc": digest_start,
+        "end_time_utc": digest_end,
+    }
 
 def get_weekly_window(now: datetime | None = None) -> dict:
     if now is None:
@@ -165,6 +203,187 @@ class DailyDigestService:
                 "ult_uses": row["ult_uses"],
                 "created_at": row["created_at"].isoformat(),
             })
+
+        return results
+
+    def fetch_period_digest_rows(self, window: dict) -> list[dict]:
+        """
+        Build digest rows for a multi-day period.
+
+        Hourly raid data supplies:
+            - completions
+            - distinct observed players per archetype
+            - skill point averages
+
+        Daily digest data supplies:
+            - average daily ultimate usage percentage
+
+        No Wynncraft API calls are made here.
+        """
+        all_rows = []
+
+        for raid_config in RAIDS:
+            raid = raid_config["raid"]
+            delta_column = raid_config["delta_column"]
+
+            hourly_rows = self._fetch_period_hourly_rows(
+                raid=raid,
+                delta_column=delta_column,
+                digest_date=window["digest_date"],
+                start_time_utc=window["start_time_utc"],
+                end_time_utc=window["end_time_utc"],
+            )
+
+            ultimate_usage = self._fetch_period_ultimate_usage(
+                raid=raid,
+                start_time_utc=window["start_time_utc"],
+                end_time_utc=window["end_time_utc"],
+            )
+
+            for row in hourly_rows:
+                row["ult_usage_pct"] = ultimate_usage.get(row["archetype"])
+                all_rows.append(row)
+
+        logger.info(
+            f"Fetched {len(all_rows)} period digest rows "
+            f"for {window['start_time_utc']} -> {window['end_time_utc']}"
+        )
+
+        return all_rows
+
+    def _fetch_period_hourly_rows(
+            self,
+            raid: str,
+            delta_column: str,
+            digest_date,
+            start_time_utc: datetime,
+            end_time_utc: datetime,
+    ) -> list[dict]:
+        query = f"""
+        SELECT
+            @digest_date AS digest_date,
+            @raid AS raid,
+            COALESCE(archetype, 'Unknown') AS archetype,
+
+            SUM({delta_column}) AS completions,
+            COUNT(DISTINCT player_id) AS unique_players,
+
+            AVG(str) AS avg_str,
+            AVG(dex) AS avg_dex,
+            AVG(int) AS avg_int,
+            AVG(def) AS avg_def,
+            AVG(agi) AS avg_agi,
+
+            CURRENT_TIMESTAMP() AS created_at
+        FROM `{self.hourly_table}`
+        WHERE timestamp >= @start_time
+          AND timestamp < @end_time
+          AND {delta_column} > 0
+        GROUP BY archetype
+        ORDER BY completions DESC
+        """
+
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter(
+                    "digest_date",
+                    "DATE",
+                    digest_date,
+                ),
+                bigquery.ScalarQueryParameter(
+                    "raid",
+                    "STRING",
+                    raid,
+                ),
+                bigquery.ScalarQueryParameter(
+                    "start_time",
+                    "TIMESTAMP",
+                    start_time_utc,
+                ),
+                bigquery.ScalarQueryParameter(
+                    "end_time",
+                    "TIMESTAMP",
+                    end_time_utc,
+                ),
+            ]
+        )
+
+        results = []
+
+        for row in self.client.query(
+                query,
+                job_config=job_config,
+        ).result():
+            results.append({
+                "digest_date": row["digest_date"].isoformat(),
+                "raid": row["raid"],
+                "archetype": row["archetype"],
+                "completions": int(row["completions"] or 0),
+                "unique_players": int(row["unique_players"] or 0),
+                "avg_str": row["avg_str"],
+                "avg_dex": row["avg_dex"],
+                "avg_int": row["avg_int"],
+                "avg_def": row["avg_def"],
+                "avg_agi": row["avg_agi"],
+                "ult_uses": None,
+                "created_at": row["created_at"].isoformat(),
+            })
+
+        return results
+
+    def _fetch_period_ultimate_usage(
+            self,
+            raid: str,
+            start_time_utc: datetime,
+            end_time_utc: datetime,
+    ) -> dict[str, float]:
+        query = f"""
+        SELECT
+            archetype,
+            AVG(
+                SAFE_DIVIDE(
+                    CAST(ult_uses AS FLOAT64),
+                    CAST(unique_players AS FLOAT64)
+                )
+            ) * 100 AS ult_usage_pct
+        FROM `{self.digest_table}`
+        WHERE raid = @raid
+          AND digest_date >= DATE(@start_time)
+          AND digest_date < DATE(@end_time)
+          AND archetype IS NOT NULL
+          AND archetype != 'Unknown'
+          AND unique_players > 0
+          AND ult_uses IS NOT NULL
+        GROUP BY archetype
+        """
+
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter(
+                    "raid",
+                    "STRING",
+                    raid,
+                ),
+                bigquery.ScalarQueryParameter(
+                    "start_time",
+                    "TIMESTAMP",
+                    start_time_utc,
+                ),
+                bigquery.ScalarQueryParameter(
+                    "end_time",
+                    "TIMESTAMP",
+                    end_time_utc,
+                ),
+            ]
+        )
+
+        results = {}
+
+        for row in self.client.query(
+                query,
+                job_config=job_config,
+        ).result():
+            results[row["archetype"]] = float(row["ult_usage_pct"])
 
         return results
 
