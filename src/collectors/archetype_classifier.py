@@ -51,7 +51,7 @@ ARCHETYPE_MARKERS = {
     "Light Bender": ["massImmune"], # Sunflare
 
     "Summoner": ["hummingbirds"],
-    "Ritualist": ["maskOfTheAwakened"],
+    "Ritualist": ["ritualCircle"],
     "Acolyte": ["bloodPool"],
 
     "Fallen": ["betterEnragedBlow"],
