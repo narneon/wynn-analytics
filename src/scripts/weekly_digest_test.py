@@ -6,7 +6,7 @@ from src.reports.daily_digest import (
     get_weekly_window,
 )
 from src.reports.discord_client import send_discord_files
-
+from src.config.settings import DISCORD_TEST_WEBHOOK_URL
 
 async def main():
     digest_service = DailyDigestService()
@@ -79,6 +79,7 @@ async def main():
     discord_success = await send_discord_files(
         image_paths=image_paths,
         content="Weekly Wynncraft Raid Report Test",
+        webhook_url=DISCORD_TEST_WEBHOOK_URL,
     )
 
     if not discord_success:

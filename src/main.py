@@ -21,6 +21,8 @@ from src.config.settings import (
     WEEKLY_DIGEST_WEEKDAY,
     WEEKLY_DIGEST_HOUR_UTC,
     WEEKLY_DIGEST_MINUTE_UTC,
+    DISCORD_DAILY_THREAD_ID,
+    DISCORD_WEEKLY_THREAD_ID,
 )
 
 logger = setup_logger(__name__)
@@ -185,6 +187,7 @@ async def weekly_digest_loop():
             await send_discord_files(
                 image_paths=image_paths,
                 content=message,
+                thread_id=DISCORD_WEEKLY_THREAD_ID,
             )
 
             logger.info("Weekly Discord digest complete")
@@ -234,6 +237,7 @@ async def daily_digest_loop(api, session):
             await send_discord_files(
                 image_paths=image_paths,
                 content=message,
+                thread_id=DISCORD_DAILY_THREAD_ID,
             )
 
             logger.info("Daily Discord digest complete")

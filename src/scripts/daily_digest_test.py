@@ -5,9 +5,9 @@ from src.api.wynn_api import WynnAPI
 from src.reports.chart_images import generate_raid_digest_images
 from src.reports.daily_digest import (
     DailyDigestService,
-    RAIDS,
     get_daily_window,
 )
+from src.config.settings import DISCORD_TEST_WEBHOOK_URL
 from src.reports.discord_client import send_discord_files
 from src.reports.ultimate_usage import compute_ultimate_usage_counts
 
@@ -85,6 +85,7 @@ async def main():
     discord_success = await send_discord_files(
         image_paths=image_paths,
         content=message,
+        webhook_url=DISCORD_TEST_WEBHOOK_URL,
     )
 
     print(f"\nDiscord send success: {discord_success}")

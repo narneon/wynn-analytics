@@ -61,6 +61,9 @@ DRY_RUN = os.getenv("DRY_RUN", "false").lower() == "true"
 
 # Discord / reporting
 DISCORD_WEBHOOK_URL = _get_required_env("DISCORD_WEBHOOK_URL")
+DISCORD_DAILY_THREAD_ID = _get_required_env("DISCORD_DAILY_THREAD_ID")
+DISCORD_WEEKLY_THREAD_ID = _get_required_env("DISCORD_WEEKLY_THREAD_ID")
+DISCORD_TEST_WEBHOOK_URL = _get_required_env("DISCORD_TEST_WEBHOOK_URL")
 
 DAILY_DIGEST_HOUR_UTC = _get_int_env("DAILY_DIGEST_HOUR_UTC", 17)
 DAILY_DIGEST_MINUTE_UTC = _get_int_env("DAILY_DIGEST_MINUTE_UTC", 30)

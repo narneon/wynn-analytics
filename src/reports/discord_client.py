@@ -12,6 +12,8 @@ logger = setup_logger(__name__)
 async def send_discord_files(
     image_paths: list[Path],
     content: str = "",
+    thread_id: str | None = None,
+    webhook_url: str = DISCORD_WEBHOOK_URL,
 ) -> bool:
     if not image_paths:
         logger.warning("No Discord files to send")
@@ -36,8 +38,17 @@ async def send_discord_files(
                 content_type="image/png",
             )
 
+        params = {}
+
+        if thread_id is not None:
+            params["thread_id"] = thread_id
+
         async with aiohttp.ClientSession() as session:
-            async with session.post(DISCORD_WEBHOOK_URL, data=form) as response:
+            async with session.post(
+                webhook_url,
+                params=params,
+                data=form,
+            ) as response:
                 if response.status not in {200, 204}:
                     text = await response.text()
                     logger.error(
